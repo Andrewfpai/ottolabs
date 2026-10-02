@@ -1,13 +1,26 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { Coffee, Minimize2, Pause, Play, Square, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Coffee,
+  Eye,
+  EyeOff,
+  Maximize,
+  Minimize,
+  NotebookPen,
+  Palette,
+  Pause,
+  Play,
+  Square,
+  Timer,
+  Trash2,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
-import { EmptyState } from "@/components/layout/empty-state";
-import { TrackIcon } from "@/components/track-icon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,53 +33,141 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Track } from "@/db/schema";
+import { BackgroundPicker } from "@/features/focus/components/background-picker";
+import { FocusBackground } from "@/features/focus/components/focus-background";
+import { SessionNotes } from "@/features/focus/components/session-notes";
+import { StudyTogether } from "@/features/focus/components/study-together";
+import type { MyRoom } from "@/features/rooms/server/queries";
 import { FinishSessionDialog } from "@/features/sessions/components/finish-session-dialog";
-import { PhaseRing } from "@/features/sessions/components/phase-ring";
 import {
   useActiveSession,
   useDiscardSession,
   usePauseSession,
   useResumeSession,
+  useStartSession,
 } from "@/features/sessions/hooks/use-active-session";
 import { useElapsed } from "@/features/sessions/hooks/use-elapsed";
 import { usePomodoroPhase } from "@/features/sessions/hooks/use-pomodoro";
 import { formatCountdown, phaseLabel } from "@/features/sessions/lib/pomodoro";
+import { TIMER_LAYOUT_ID } from "@/features/sessions/lib/timer-layout";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
 import { FocusSoundButton } from "@/features/sounds/components/focus-sound-picker";
-import { formatCompact, formatDuration, timerState } from "@/lib/time/elapsed";
-import { TIMER_LAYOUT_ID } from "@/features/sessions/lib/timer-layout";
-import { trackColorClasses } from "@/lib/track-colors";
+import type { TrackTask } from "@/features/tasks/server/queries";
+import { now as clockNow } from "@/lib/time/clock";
+import { formatCompact, formatDuration, pausedTotalMs, timerState } from "@/lib/time/elapsed";
 import { cn } from "@/lib/utils";
 
+/** Glassy controls that read on any background, scene or photo. */
+const GLASS =
+  "border border-white/15 bg-black/35 text-white backdrop-blur-md hover:bg-black/55 hover:text-white focus-visible:ring-white/60";
+
+function GlassIcon({
+  label,
+  onClick,
+  active,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={label}
+          aria-pressed={active}
+          onClick={onClick}
+          className={cn("size-10 cursor-pointer rounded-xl", GLASS, active && "bg-white/25")}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+const noop = () => () => {};
+
+/** Whether the page is in browser fullscreen, kept in step with Esc and F11. */
+function useFullscreen() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const sync = () => setOn(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  const toggle = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void document.documentElement.requestFullscreen?.().catch(() => {});
+  }, []);
+  // Read after hydration only: the server cannot know (iPhone Safari says no).
+  const supported = useSyncExternalStore(
+    noop,
+    () => Boolean(document.fullscreenEnabled),
+    () => false,
+  );
+  return { on, toggle, supported };
+}
+
+/** Repaints once a second while a session is live, for the break total. */
+function useSecondTick(live: boolean): number {
+  const [tick, setTick] = useState(() => clockNow());
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => setTick(clockNow()), 1000);
+    return () => clearInterval(id);
+  }, [live]);
+  return tick;
+}
+
 /**
- * Fullscreen focus mode.
+ * Focus mode: the running timer over a full-screen scene.
  *
- * Covers the whole viewport, chrome included — the point of the mode is that
- * there is nothing else on screen to look at. The timer itself is the same
- * live session the mini bar shows, morphed into place with a shared `layoutId`
- * so it reads as the same object moving rather than one thing being replaced
- * by another.
+ * The toolbar picks the background, opens notes, studies together, sets
+ * focus sounds and goes fullscreen; the bottom bar pauses and finishes. With
+ * nothing running it offers to start, so the screen works as a place to
+ * begin as well as to continue.
  *
- * Note this does NOT run the pomodoro engine or the heartbeat. Those live in
- * the timer bar, which stays mounted underneath; running a second copy here
- * would mean two clients racing to make the same cycle transition.
+ * Note this does NOT run the Pomodoro engine or the heartbeat. Those live in
+ * the timer bar, which stays mounted underneath (AGENTS rule 13).
  */
-export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
+export function FocusScreen({
+  initial,
+  tracks,
+  tasksByTrack,
+  rooms,
+}: {
+  initial: SessionWithTrack | null;
+  tracks: Track[];
+  tasksByTrack: Record<string, TrackTask[]>;
+  rooms: MyRoom[];
+}) {
   const { data: session } = useActiveSession(initial);
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const fullscreen = useFullscreen();
 
   const [finishOpen, setFinishOpen] = useState(false);
   const [frozenMs, setFrozenMs] = useState(0);
+  const [panel, setPanel] = useState<"background" | "together" | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [pictureVersion, setPictureVersion] = useState(0);
 
   const elapsed = useElapsed(session);
   const phase = usePomodoroPhase(session);
+  const tick = useSecondTick(session != null && session.endedAt == null);
 
-  // Omitting the id is how the morph is opted out of: with no pairing, both
-  // sides simply render in place. `useReducedMotion` is not advice.
-  const morph = reduceMotion
-    ? { badge: undefined, readout: undefined }
-    : TIMER_LAYOUT_ID;
+  // The readout morphs from the timer bar's; omitting the id opts out.
+  const readoutId = reduceMotion ? undefined : TIMER_LAYOUT_ID.readout;
 
   const pause = usePauseSession();
   const resume = useResumeSession();
@@ -78,8 +179,8 @@ export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
   const busy = pause.isPending || resume.isPending;
 
   const exit = useCallback(() => {
-    // Typing /focus straight into the address bar leaves nothing to go back
-    // to, and "exit" must never mean "leave the app".
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    // Typing /focus straight into the address bar leaves nothing to go back to.
     if (window.history.length > 1) router.back();
     else router.push("/dashboard");
   }, [router]);
@@ -92,231 +193,281 @@ export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      // A dialog is open, or something is being typed into: leave it alone.
-      if (finishOpen) return;
+      if (finishOpen || panel) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, [contenteditable], [role=dialog]")) return;
 
       if (event.key === "Escape") {
         event.preventDefault();
-        exit();
+        if (hidden) setHidden(false);
+        else exit();
       }
-
       if (event.key === " " || event.code === "Space") {
         event.preventDefault();
         toggle();
       }
     }
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [exit, toggle, finishOpen]);
+  }, [exit, toggle, finishOpen, panel, hidden]);
 
-  if (!session) {
-    return (
-      <div className="bg-background fixed inset-0 z-50 flex flex-col items-center justify-center p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <EmptyState
-          icon={Play}
-          title="Nothing is running"
-          description="Focus mode is a place to be while a timer runs. Start one on a track and it opens here."
-          action={
-            <Button asChild variant="cta" className="cursor-pointer">
-              <Link href="/tracks">Pick a track</Link>
+  const breakMs = session ? pausedTotalMs(session, tick) : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden text-white">
+      <FocusBackground version={pictureVersion} />
+
+      <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        {/* Top: way out on the left, tools on the right. */}
+        <div className={cn("flex items-start justify-between gap-3 p-4 transition-opacity", hidden && "pointer-events-none opacity-0")}>
+          <GlassIcon label="Exit focus mode" onClick={exit}>
+            <ArrowLeft className="size-4" aria-hidden />
+          </GlassIcon>
+          <div className="flex flex-wrap justify-end gap-2">
+            <GlassIcon label="Background" onClick={() => setPanel("background")}>
+              <Palette className="size-4" aria-hidden />
+            </GlassIcon>
+            {session ? (
+              <GlassIcon label="Session notes" active={notesOpen} onClick={() => setNotesOpen((o) => !o)}>
+                <NotebookPen className="size-4" aria-hidden />
+              </GlassIcon>
+            ) : null}
+            <GlassIcon label="Study together" active={Boolean(session?.roomId)} onClick={() => setPanel("together")}>
+              <Users className="size-4" aria-hidden />
+            </GlassIcon>
+            <FocusSoundButton audibleNow={Boolean(session) && !isPaused} className={cn("size-10 rounded-xl", GLASS)} />
+            {fullscreen.supported ? (
+              <GlassIcon label={fullscreen.on ? "Leave fullscreen" : "Fullscreen"} onClick={fullscreen.toggle}>
+                {fullscreen.on ? <Minimize className="size-4" aria-hidden /> : <Maximize className="size-4" aria-hidden />}
+              </GlassIcon>
+            ) : null}
+            <GlassIcon label="Hide controls" onClick={() => setHidden(true)}>
+              <EyeOff className="size-4" aria-hidden />
+            </GlassIcon>
+          </div>
+        </div>
+
+        {/* Centre: what you are on, and the number. */}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center [text-shadow:0_2px_16px_rgba(0,0,0,0.45)]">
+          {session ? (
+            <>
+              <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-4xl">{session.track.title}</h1>
+              {session.task ? <p className="-mt-1 text-sm text-white/80 sm:text-base">{session.task.title}</p> : null}
+              {phase ? (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium backdrop-blur",
+                    onBreak ? "bg-white/15 text-white" : "bg-black/30 text-white",
+                  )}
+                >
+                  {onBreak ? <Coffee className="size-3.5" aria-hidden /> : <Timer className="size-3.5" aria-hidden />}
+                  {phaseLabel(phase)}
+                  {phase.completedCycles > 0 ? <span className="text-white/70">· {phase.completedCycles} done</span> : null}
+                </span>
+              ) : null}
+              {/* A live clock: the server's render is a second or so older than the browser's. */}
+              <motion.p
+                suppressHydrationWarning
+                layoutId={readoutId}
+                className={cn(
+                  "font-numeric mt-2 text-7xl leading-none font-semibold tabular-nums sm:text-9xl",
+                  isPaused && !onBreak && "opacity-60",
+                )}
+              >
+                {phase ? formatCountdown(phase.remainingMs) : formatDuration(elapsed)}
+              </motion.p>
+              <div className={cn("mt-3 space-y-1 text-sm text-white/85 transition-opacity", hidden && "opacity-0")}>
+                <p className="font-numeric" suppressHydrationWarning>
+                  Focused {formatDuration(elapsed)}
+                </p>
+                <p className="font-numeric text-white/70" suppressHydrationWarning>
+                  On breaks and pauses {formatDuration(breakMs)}
+                </p>
+                {phase?.isOver ? (
+                  <p className="text-white/70">
+                    {phase.kind === "work" ? "This interval ran over while you were away; it still counts." : "Break is over."}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <StartHere tracks={tracks} tasksByTrack={tasksByTrack} />
+          )}
+        </div>
+
+        {/* Bottom: the controls, or a way to bring them back. */}
+        <div className="flex justify-center p-4 pb-6">
+          {hidden ? (
+            <Button variant="ghost" size="sm" className={cn("cursor-pointer gap-1.5 rounded-full", GLASS)} onClick={() => setHidden(false)}>
+              <Eye className="size-4" aria-hidden />
+              Show controls
             </Button>
-          }
+          ) : session ? (
+            <div className={cn("flex items-center gap-1.5 rounded-2xl p-1.5", GLASS, "hover:bg-black/35")}>
+              <Button
+                variant="ghost"
+                className="cursor-pointer gap-2 rounded-xl text-white hover:bg-white/15 hover:text-white"
+                disabled={busy}
+                onClick={toggle}
+              >
+                {isPaused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+                {isPaused ? (onBreak ? "Skip break" : "Resume") : "Pause"}
+              </Button>
+              <Button
+                className="cursor-pointer gap-2 rounded-xl bg-white text-black hover:bg-white/90"
+                onClick={() => {
+                  setFrozenMs(elapsed);
+                  setFinishOpen(true);
+                }}
+              >
+                <Square className="size-3.5 fill-current" aria-hidden />
+                Finish
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="cursor-pointer rounded-xl text-white/70 hover:bg-white/15 hover:text-white"
+                    aria-label="Discard session"
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Discard this session?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {formatCompact(elapsed)} on {session.track.title} will be thrown away and not logged. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="cursor-pointer">Keep timing</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive hover:bg-destructive/90 cursor-pointer text-white"
+                      onClick={() => discard.mutate({ id: session.id })}
+                    >
+                      Discard
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {session && notesOpen && !hidden ? (
+        <SessionNotes key={session.id} session={session} onClose={() => setNotesOpen(false)} />
+      ) : null}
+
+      <BackgroundPicker
+        open={panel === "background"}
+        onOpenChange={(open) => setPanel(open ? "background" : null)}
+        version={pictureVersion}
+        onUploaded={() => setPictureVersion((v) => v + 1)}
+      />
+      <StudyTogether
+        open={panel === "together"}
+        onOpenChange={(open) => setPanel(open ? "together" : null)}
+        rooms={rooms}
+        currentRoomId={session?.roomId ?? null}
+        running={Boolean(session)}
+      />
+
+      {session ? (
+        <FinishSessionDialog
+          session={session}
+          frozenMs={frozenMs}
+          open={finishOpen}
+          // Not wired to `exit`: after a save the screen offers to start another.
+          onOpenChange={setFinishOpen}
         />
+      ) : null}
+    </div>
+  );
+}
+
+/** With nothing running: pick a track (and a task, if it has any) and start. */
+function StartHere({ tracks, tasksByTrack }: { tracks: Track[]; tasksByTrack: Record<string, TrackTask[]> }) {
+  const start = useStartSession();
+  const [trackId, setTrackId] = useState(tracks[0]?.id ?? "");
+  const [taskId, setTaskId] = useState("none");
+  const tasks = tasksByTrack[trackId] ?? [];
+
+  if (tracks.length === 0) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-3xl font-semibold tracking-tight">Ready when you are</h1>
+        <p className="text-white/80">Create a track first, then come back here to focus on it.</p>
+        <Button asChild className="cursor-pointer">
+          <Link href="/tracks">Go to Tracks</Link>
+        </Button>
       </div>
     );
   }
 
-  const colors = trackColorClasses(session.track.color);
+  function go(mode: "stopwatch" | "pomodoro") {
+    start.mutate({ trackId, mode, taskId: taskId === "none" ? undefined : taskId });
+  }
 
   return (
-    <div className="bg-background fixed inset-0 z-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-between p-4">
-        <span className="text-muted-foreground text-sm font-medium">
-          Focus mode
-        </span>
+    <div className="w-full max-w-sm space-y-4">
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Focus session</h1>
+      <p className="text-white/80">Pick what you are working on.</p>
+      <div className="space-y-2 text-left [text-shadow:none]">
+        <Select
+          value={trackId}
+          onValueChange={(value) => {
+            setTrackId(value);
+            setTaskId("none");
+          }}
+        >
+          <SelectTrigger aria-label="Track" className={cn("h-11 w-full cursor-pointer rounded-xl", GLASS)}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {tracks.map((track) => (
+              <SelectItem key={track.id} value={track.id} className="cursor-pointer">
+                {track.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {tasks.length > 0 ? (
+          <Select value={taskId} onValueChange={setTaskId}>
+            <SelectTrigger aria-label="Task" className={cn("h-11 w-full cursor-pointer rounded-xl", GLASS)}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="cursor-pointer">
+                No particular task
+              </SelectItem>
+              {tasks.map((task) => (
+                <SelectItem key={task.id} value={task.id} className="cursor-pointer">
+                  {task.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+      </div>
+      <div className="flex justify-center gap-2 pt-1">
+        <Button variant="cta" size="lg" className="cursor-pointer gap-2" disabled={start.isPending || !trackId} onClick={() => go("stopwatch")}>
+          <Play className="size-4 fill-current" aria-hidden />
+          Start
+        </Button>
         <Button
           variant="ghost"
-          size="icon-lg"
-          className="cursor-pointer"
-          aria-label="Exit focus mode"
-          onClick={exit}
+          size="lg"
+          className={cn("cursor-pointer gap-2", GLASS)}
+          disabled={start.isPending || !trackId}
+          onClick={() => go("pomodoro")}
         >
-          <Minimize2 className="size-4" aria-hidden />
+          <Timer className="size-4" aria-hidden />
+          Pomodoro
         </Button>
       </div>
-
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 p-6">
-        <motion.div
-          layoutId={morph.badge}
-          className={cn(
-            "flex size-14 items-center justify-center rounded-2xl",
-            colors.surface,
-            colors.text,
-          )}
-        >
-          <TrackIcon name={session.track.icon} className="size-7" />
-        </motion.div>
-
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-xl font-medium tracking-tight text-balance">
-            {session.track.title}
-          </h1>
-          {session.task ? (
-            <p className="text-muted-foreground -mt-1 text-sm text-balance">{session.task.title}</p>
-          ) : null}
-          {phase ? (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-                onBreak
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-cta/10 text-cta",
-              )}
-            >
-              {onBreak ? <Coffee className="size-3.5" aria-hidden /> : null}
-              {phaseLabel(phase)}
-              {phase.completedCycles > 0 ? (
-                <span className="text-muted-foreground font-normal">
-                  · {phase.completedCycles} done
-                </span>
-              ) : null}
-            </span>
-          ) : null}
-        </div>
-
-        {/* The pomodoro headline is the countdown; the stopwatch headline is
-            the total. Both morph from the same element in the mini bar. */}
-        {phase ? (
-          <PhaseRing
-            progress={phase.progress}
-            strokeWidth={2.5}
-            tone={onBreak ? "muted" : "accent"}
-            className="size-64 sm:size-80"
-          >
-            <div className="flex flex-col items-center gap-1">
-              <motion.p
-                layoutId={morph.readout}
-                className={cn(
-                  "font-numeric text-6xl leading-none font-medium tabular-nums sm:text-7xl",
-                  isPaused && !onBreak && "text-muted-foreground",
-                )}
-              >
-                {formatCountdown(phase.remainingMs)}
-              </motion.p>
-              <p className="text-muted-foreground font-numeric text-sm">
-                {formatDuration(elapsed)} focused
-              </p>
-            </div>
-          </PhaseRing>
-        ) : (
-          <motion.p
-            layoutId={morph.readout}
-            className={cn(
-              "font-numeric text-7xl leading-none font-medium tabular-nums sm:text-8xl",
-              isPaused && "text-muted-foreground",
-            )}
-          >
-            {formatDuration(elapsed)}
-          </motion.p>
-        )}
-
-        {phase?.isOver ? (
-          <p className="text-muted-foreground max-w-[40ch] text-center text-sm">
-            {phase.kind === "work"
-              ? "This interval ran over while the tab was away — the extra time still counts."
-              : "Break is over."}
-          </p>
-        ) : null}
-
-        <div className="flex items-center gap-2">
-          <FocusSoundButton audibleNow={!isPaused} className="size-10" />
-          <Button
-            variant="outline"
-            size="lg"
-            className="cursor-pointer gap-2"
-            disabled={busy}
-            onClick={toggle}
-          >
-            {isPaused ? (
-              <>
-                <Play className="size-4" aria-hidden />
-                {onBreak ? "Skip break" : "Resume"}
-              </>
-            ) : (
-              <>
-                <Pause className="size-4" aria-hidden />
-                Pause
-              </>
-            )}
-          </Button>
-
-          <Button
-            size="lg"
-            className="cursor-pointer gap-2"
-            onClick={() => {
-              setFrozenMs(elapsed);
-              setFinishOpen(true);
-            }}
-          >
-            <Square className="size-3.5 fill-current" aria-hidden />
-            Finish
-          </Button>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-lg"
-                className="text-muted-foreground hover:text-destructive cursor-pointer"
-                aria-label="Discard session"
-              >
-                <Trash2 className="size-4" aria-hidden />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Discard this session?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {formatCompact(elapsed)} on {session.track.title} will be thrown
-                  away and not logged. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="cursor-pointer">
-                  Keep timing
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive cursor-pointer text-white hover:bg-destructive/90"
-                  onClick={() => {
-                    discard.mutate({ id: session.id });
-                    exit();
-                  }}
-                >
-                  Discard
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-
-      <p className="text-muted-foreground/70 pb-6 text-center text-xs">
-        <kbd className="font-numeric">Space</kbd> pause ·{" "}
-        <kbd className="font-numeric">Esc</kbd> exit
-      </p>
-
-      <FinishSessionDialog
-        session={session}
-        frozenMs={frozenMs}
-        open={finishOpen}
-        // Not wired to `exit`: the dialog closes both on save and on cancel,
-        // and cancelling must not throw you out of focus mode. After a save
-        // the session is null and this screen offers to start another.
-        onOpenChange={setFinishOpen}
-      />
     </div>
   );
 }

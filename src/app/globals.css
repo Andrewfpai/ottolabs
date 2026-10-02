@@ -245,6 +245,46 @@
 }
 
 /*
+  Focus scenes (features/focus/components/scenes.tsx). Pixel-art loops: stars
+  twinkle, windows flicker, rain and petals fall. Reduced motion stills them
+  through the rule below.
+*/
+@keyframes ol-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+@keyframes ol-flicker {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.55; }
+  55% { opacity: 0.9; }
+}
+@keyframes ol-fall {
+  from { transform: translateY(-180px); }
+  to { transform: translateY(0); }
+}
+@keyframes ol-petal {
+  from { transform: translate(0, -24px) rotate(0deg); }
+  to { transform: translate(-70px, 200px) rotate(320deg); }
+}
+@keyframes ol-shimmer {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.85; }
+}
+@keyframes ol-shoot {
+  0%, 88% { opacity: 0; transform: translate(0, 0); }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-90px, 45px); }
+}
+@keyframes ol-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-320px); }
+}
+.ol-scene * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/*
   Honour the OS setting. Motion is decoration here; the app stays fully usable
   with all of it switched off.
 */

@@ -51,7 +51,15 @@ export function FinishSessionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(session.note ?? "");
+  // Opening the dialog starts from whatever was written in focus mode's notes.
+  // Adjusted during render rather than in an effect (react.dev, "You might not
+  // need an effect").
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setNote(session.note ?? "");
+  }
   const [tags, setTags] = useState<string[]>([]);
   const [completeTask, setCompleteTask] = useState(false);
   const [reviewTask, setReviewTask] = useState(false);

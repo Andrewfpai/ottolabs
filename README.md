@@ -253,6 +253,22 @@ Deleting a task keeps its time on the track (`on delete set null`).
   fire, synthesised with Web Audio from noise beds and scheduled events. No
   audio files. Driven once from `TimerBar`; preferences per device.
 
+## Focus mode, invite links and room links
+
+- **Focus mode** (`/focus`) sits over a full-screen scene: five pixel-art
+  landscapes drawn in code (`features/focus/components/scenes.tsx`, seeded so
+  server and browser agree) or your own picture, kept in this browser's
+  IndexedDB. Its toolbar opens the background picker, session notes (saved
+  into the running session's note as you type), Study together, focus sounds
+  and fullscreen. With nothing running it offers to start.
+- **Invite links** (Settings → Access): one-time links an owner makes for a
+  named person. The token is stored only as a SHA-256 hash and travels
+  through Google sign-in in a short-lived cookie; the sign-in callback spends
+  it and adds whichever Google address came back to `allowed_emails`.
+- **Room links**: each room has a secret `invite_code` (`/rooms/join/<code>`)
+  the owner can copy or replace. Anyone with access may join while there is
+  space. A running session can be moved into a room from focus mode.
+
 ## The stale-session reaper
 
 A timer whose heartbeat has been silent for 30 minutes is closed **at its last

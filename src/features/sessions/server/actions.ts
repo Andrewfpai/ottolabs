@@ -4,6 +4,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
+import { z } from "zod";
+
 import { db } from "@/db";
 import { DEFAULT_POMODORO, focusSessions, tasks, tracks } from "@/db/schema";
 import {
@@ -449,4 +451,26 @@ export async function getMyTags(): Promise<string[]> {
     limit 30
   `);
   return result.rows.map((r) => r.tag);
+}
+
+const liveNoteSchema = z.object({ id: z.uuid(), note: z.string().max(2000, "Keep the note under 2000 characters") });
+
+/**
+ * Save the note you are writing during a session, from focus mode's notes
+ * panel. Only on the running session; the finish dialog starts from it.
+ * No revalidation: nothing else shows a live session's note.
+ */
+export async function saveLiveNote(input: unknown): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = liveNoteSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Could not save the note.");
+
+  const note = parsed.data.note.trim() ? parsed.data.note : null;
+  const saved = await db
+    .update(focusSessions)
+    .set({ note })
+    .where(and(eq(focusSessions.id, parsed.data.id), eq(focusSessions.userId, user.id), sql`${focusSessions.endedAt} is null`))
+    .returning({ id: focusSessions.id });
+  if (saved.length === 0) return fail("That timer has stopped.", "NOT_RUNNING");
+  return ok(undefined);
 }

@@ -1,23 +1,28 @@
 import type { Metadata } from "next";
 
+import { getMyRooms } from "@/features/rooms/server/queries";
 import { FocusScreen } from "@/features/sessions/components/focus-screen";
 import { getActiveSession } from "@/features/sessions/server/queries";
+import { getOpenTasksByTrack } from "@/features/tasks/server/queries";
+import { getStartableTracks } from "@/features/tracks/server/queries";
 
 export const metadata: Metadata = { title: "Focus" };
 
 /**
- * Fullscreen distraction-free timer.
+ * Fullscreen focus mode over a scene of your choosing.
  *
- * Not in the sidebar: it is a mode you enter from a running timer, not a place
- * you browse to. Arriving here with nothing running is still handled — the
- * screen offers to start something — because the URL is bookmarkable whatever
- * we intend.
- *
- * The session is read on the server so the timer is correct in the very first
- * paint, rather than flashing empty while a fetch resolves.
+ * Not in the sidebar: you enter it from a running timer, though arriving with
+ * nothing running offers to start one. The session is read on the server so
+ * the timer is right in the first paint; tracks, tasks and rooms come along
+ * for starting here and for Study together.
  */
 export default async function FocusPage() {
-  const session = await getActiveSession();
+  const [session, tracks, tasksByTrack, rooms] = await Promise.all([
+    getActiveSession(),
+    getStartableTracks(),
+    getOpenTasksByTrack(),
+    getMyRooms(),
+  ]);
 
-  return <FocusScreen initial={session} />;
+  return <FocusScreen initial={session} tracks={tracks} tasksByTrack={tasksByTrack} rooms={rooms} />;
 }
