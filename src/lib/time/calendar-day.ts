@@ -55,6 +55,15 @@ export function dayKey(date: Date | number, timeZone: string): DayKey {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/** The calendar day and wall-clock hour of `date` in `timeZone`. */
+export function wallClock(
+  date: Date | number,
+  timeZone: string,
+): { day: DayKey; hour: number; minute: number } {
+  const p = zonedParts(date, timeZone);
+  return { day: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour), minute: Number(p.minute) };
+}
+
 /**
  * The day a moment of *focus* belongs to: like `dayKey`, except that anything
  * before `dayStartHour` counts toward the day before. With the default of 4,
