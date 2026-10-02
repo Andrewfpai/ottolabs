@@ -1,8 +1,18 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
-import { focusSessions, type Track, tracks } from "@/db/schema";
-import { requireUser } from "@/lib/auth-guard";
+import { type FocusSession, focusSessions, type Track, tasks, tracks } from "@/db/schema";
+import {
+  type AnalyticsData,
+  type AnalyticsRangeKey,
+  analyticsWindow,
+  computeAnalytics,
+  computeFocusSummary,
+} from "@/features/analytics/lib/compute";
+import { getSessionsInRange } from "@/features/sessions/server/queries";
+import { requireSettings, requireUser } from "@/lib/auth-guard";
+import { addDays, zonedInstant } from "@/lib/time/calendar-day";
 
 export type TrackWithStats = Track & {
   totalMs: number;
@@ -119,4 +129,98 @@ export async function getStartableTracks(): Promise<Track[]> {
     .where(and(eq(tracks.userId, user.id), eq(tracks.status, "active")))
     .orderBy(asc(tracks.sortOrder), desc(tracks.createdAt))
     .then((rows) => rows.map((r) => r.track));
+}
+
+export type TrackNote = Pick<
+  FocusSession,
+  "id" | "startedAt" | "endedAt" | "pausedMs" | "pausedAt" | "note" | "tags"
+>;
+
+/** How many notes the track page shows at a time. */
+export const NOTES_PAGE_SIZE = 20;
+
+export type TrackDetail = {
+  track: TrackWithStats;
+  analytics: AnalyticsData;
+  /** Finished focus on this track since the start of this week. */
+  weekMs: number;
+  notes: TrackNote[];
+  notesTotal: number;
+  openTasks: number;
+};
+
+/**
+ * Everything the track page shows. Null unless the track is the caller's:
+ * someone else's id and a made-up one both 404.
+ */
+export async function getTrackDetail(
+  trackId: string,
+  rangeKey: AnalyticsRangeKey,
+  notesPage: number,
+): Promise<TrackDetail | null> {
+  if (!z.uuid().safeParse(trackId).success) return null;
+
+  const user = await requireUser();
+  const all = await getTracksWithStats({ includeArchived: true });
+  const track = all.find((t) => t.id === trackId);
+  if (!track) return null;
+
+  const stored = await requireSettings();
+  const settings = {
+    timeZone: stored.timezone,
+    dayStartHour: stored.dayStartHour,
+    weekStartsOn: stored.weekStartsOn,
+  };
+  const now = Date.now();
+  const { earliest } = analyticsWindow(rangeKey, settings, now);
+  const from = zonedInstant(addDays(earliest, -1), null, settings.timeZone);
+
+  const withNotes = and(
+    eq(focusSessions.userId, user.id),
+    eq(focusSessions.trackId, trackId),
+    sql`${focusSessions.endedAt} is not null`,
+    sql`(${focusSessions.note} is not null or cardinality(${focusSessions.tags}) > 0)`,
+  );
+  const page = Math.max(1, notesPage);
+
+  const [sessions, notes, [{ notesTotal }], [{ openTasks }]] = await Promise.all([
+    getSessionsInRange(from, new Date(now)),
+    db
+      .select({
+        id: focusSessions.id,
+        startedAt: focusSessions.startedAt,
+        endedAt: focusSessions.endedAt,
+        pausedMs: focusSessions.pausedMs,
+        pausedAt: focusSessions.pausedAt,
+        note: focusSessions.note,
+        tags: focusSessions.tags,
+      })
+      .from(focusSessions)
+      .where(withNotes)
+      .orderBy(desc(focusSessions.startedAt))
+      .limit(NOTES_PAGE_SIZE)
+      .offset((page - 1) * NOTES_PAGE_SIZE),
+    db.select({ notesTotal: sql<number>`count(*)::int` }).from(focusSessions).where(withNotes),
+    db
+      .select({ openTasks: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, user.id),
+          eq(tasks.trackId, trackId),
+          sql`${tasks.status} in ('todo', 'in_progress')`,
+        ),
+      ),
+  ]);
+
+  const mine = sessions.filter((s) => s.trackId === trackId);
+
+  return {
+    track,
+    analytics: computeAnalytics({ rangeKey, settings, now, sessions: mine, tracks: [track], tasks: [] }),
+    weekMs: computeFocusSummary({ settings, now, sessions: mine }).weekMs,
+    notes,
+    notesTotal,
+    openTasks,
+  };
 }

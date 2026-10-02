@@ -24,12 +24,20 @@ export function AnalyticsView({
   data,
   basePath = "/analytics",
   perspective = "self",
+  scope = "all",
 }: {
   data: AnalyticsData;
   basePath?: string;
   perspective?: Perspective;
+  /**
+   * "track" when the data is one track's sessions: the per-track breakdown
+   * would always read 100%, and tasks are not part of a track's analytics.
+   */
+  scope?: "all" | "track";
 }) {
   const isSelf = perspective === "self";
+  const showTracks = scope === "all";
+  const showTasks = isSelf && scope === "all";
   const { kpis, streaks, trend } = data;
   const rangeLabel = ANALYTICS_RANGES[data.rangeKey].label.toLowerCase();
 
@@ -130,7 +138,7 @@ export function AnalyticsView({
             />
           </Panel>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={showTracks ? "grid gap-4 lg:grid-cols-2" : "grid gap-4"}>
             <Panel
               title={isSelf ? "When you focus" : "When they focus"}
               description={
@@ -150,9 +158,11 @@ export function AnalyticsView({
               />
             </Panel>
 
-            <Panel title="Where the hours went" description={`Share of focus in the last ${rangeLabel}.`}>
-              <TrackBreakdown tracks={data.tracks} />
-            </Panel>
+            {showTracks ? (
+              <Panel title="Where the hours went" description={`Share of focus in the last ${rangeLabel}.`}>
+                <TrackBreakdown tracks={data.tracks} />
+              </Panel>
+            ) : null}
           </div>
 
           <Panel title="The last year" description="Each square is a day.">
@@ -163,7 +173,7 @@ export function AnalyticsView({
             />
           </Panel>
 
-          <div className={isSelf ? "grid gap-4 lg:grid-cols-2" : "grid gap-4"}>
+          <div className={showTasks ? "grid gap-4 lg:grid-cols-2" : "grid gap-4"}>
             <Panel
               title="Session lengths"
               description="Many short sessions, or a few long ones?"
@@ -176,7 +186,7 @@ export function AnalyticsView({
               />
             </Panel>
 
-            {isSelf ? (
+            {showTasks ? (
               <Panel title="Tasks" description={`Finished and added in the last ${rangeLabel}.`}>
                 <TaskSummary stats={data.tasks} />
               </Panel>

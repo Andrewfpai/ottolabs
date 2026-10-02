@@ -12,6 +12,7 @@ import {
   Timer,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -94,7 +95,11 @@ export function TrackCard({
         </span>
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate font-medium">{track.title}</h3>
+          <h3 className="truncate font-medium">
+            <Link href={`/tracks/${track.id}`} className="hover:underline underline-offset-4">
+              {track.title}
+            </Link>
+          </h3>
           {track.description ? (
             <p className="text-muted-foreground mt-0.5 line-clamp-2 text-sm">
               {track.description}
