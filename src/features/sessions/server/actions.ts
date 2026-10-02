@@ -35,6 +35,7 @@ import {
   ok,
   violatedConstraint,
 } from "@/lib/action-result";
+import { checkMilestones } from "@/features/achievements/server/sync";
 import { notifyRoomStart } from "@/features/reminders/server/push";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireUser } from "@/lib/auth-guard";
@@ -269,6 +270,7 @@ export async function finishSession(
   }
 
   revalidateSessionViews();
+  await checkMilestones(user.id);
 
   // elapsed.ts is the only place focus time is computed.
   return ok({ id: finished.id, elapsedMs: elapsedMs(finished) });
@@ -335,6 +337,7 @@ export async function createManualSession(
     .returning({ id: focusSessions.id });
 
   revalidateSessionViews();
+  await checkMilestones(user.id);
   return ok(created);
 }
 

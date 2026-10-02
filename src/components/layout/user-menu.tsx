@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AuthedUser } from "@/lib/auth-guard";
-import { animalFromPicture } from "@/lib/avatars";
+import { parsePicture } from "@/lib/avatars";
 
 function initials(user: AuthedUser): string {
   const source = user.name?.trim() || user.email;
@@ -29,7 +29,7 @@ export function UserMenu({
   user: AuthedUser;
   signOutAction: () => Promise<void>;
 }) {
-  const animal = animalFromPicture(user.image);
+  const animal = parsePicture(user.image);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -39,7 +39,7 @@ export function UserMenu({
         >
           {animal ? (
             <span className="inline-flex size-8 shrink-0 overflow-hidden rounded-full">
-              <AnimalAvatar id={animal} />
+              <AnimalAvatar id={animal.animal} accessories={animal.accessories} />
             </span>
           ) : (
             <Avatar className="size-8">

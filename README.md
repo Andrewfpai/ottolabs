@@ -236,6 +236,23 @@ Start timer in the task's menu) and the session records to it through
 task. Starting moves a to-do to in progress; the finish dialog can tick it off.
 Deleting a task keeps its time on the track (`on delete set null`).
 
+## Milestones, cheers, reviews and focus sounds
+
+- **Milestones** (`features/achievements`): 15 goals, from 10 focused hours to
+  a 100-day streak, each unlocking an avatar accessory drawn in
+  `components/avatar-accessories.tsx`. Unlocks are written to `achievements`
+  when a session finishes or a task or review is done (and caught up on the
+  Milestones page). What you wear is `users.accessories`, one per slot, and
+  travels inside the avatar picture string, so friends and rooms see it.
+- **Cheers**: a 👏 or 🔥 to a friend, once per friend per three hours, sent
+  as a push and listed on the Friends page.
+- **Reviews**: a finished task can return in 3, 7 and 21 days
+  (`tasks.review_stage`, `tasks.review_due_at`); due ones head the Tasks page
+  and arrive in the evening push.
+- **Focus sounds** (`features/sounds`): rain, café, brown noise, ocean and
+  fire, synthesised with Web Audio from noise beds and scheduled events. No
+  audio files. Driven once from `TimerBar`; preferences per device.
+
 ## The stale-session reaper
 
 A timer whose heartbeat has been silent for 30 minutes is closed **at its last

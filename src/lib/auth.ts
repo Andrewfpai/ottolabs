@@ -78,7 +78,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = user.id;
         // The adapter loads the whole users row, our columns included.
-        session.user.image = pictureFor((user as { avatar?: string | null }).avatar, user.image);
+        const own = user as { avatar?: string | null; accessories?: string[] };
+        session.user.image = pictureFor(own.avatar, user.image, own.accessories ?? []);
       }
       return session;
     },

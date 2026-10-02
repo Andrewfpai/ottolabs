@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { getUncelebrated } from "@/features/achievements/server/queries";
 import { getActiveSession } from "@/features/sessions/server/queries";
 import { TimezoneSync } from "@/features/settings/components/timezone-sync";
 import { signOut } from "@/lib/auth";
@@ -16,9 +17,10 @@ import { requireSettings, requireUser } from "@/lib/auth-guard";
  */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [settings, activeSession] = await Promise.all([
+  const [settings, activeSession, celebrations] = await Promise.all([
     requireSettings(),
     getActiveSession(),
+    getUncelebrated(),
   ]);
 
   async function signOutAction() {
@@ -32,6 +34,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       user={user}
       signOutAction={signOutAction}
       activeSession={activeSession}
+      celebrations={celebrations}
     >
       <TimezoneSync currentTimezone={settings.timezone} />
       {children}

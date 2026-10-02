@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ANIMAL_AVATARS, animalFromPicture, pictureFor } from "../avatars";
+import { ANIMAL_AVATARS, animalFromPicture, normalizeAccessories, parsePicture, pictureFor, takeOff, wear } from "../avatars";
 
 describe("avatar pictures", () => {
   it("prefers the chosen animal over the photo", () => {
@@ -32,5 +32,25 @@ describe("avatar pictures", () => {
   it("keeps people who picked a retired avatar on its replacement", () => {
     expect(pictureFor("puppy", "https://photo")).toBe("animal:golden");
     expect(animalFromPicture("animal:piglet")).toBe("pinkpup");
+  });
+});
+
+describe("accessories", () => {
+  it("keeps one per slot, the later winning, in drawing order", () => {
+    expect(normalizeAccessories(["crown", "glasses", "halo", "nonsense", "scarf"])).toEqual(["scarf", "glasses", "halo"]);
+    expect(wear(["crown", "glasses"], "gradcap")).toEqual(["glasses", "gradcap"]);
+    expect(takeOff(["crown", "glasses"], "crown")).toEqual(["glasses"]);
+  });
+
+  it("travel inside the picture string and back", () => {
+    const picture = pictureFor("fox", "https://photo", ["crown", "scarf"]);
+    expect(picture).toBe("animal:fox~scarf,crown");
+    expect(parsePicture(picture)).toEqual({ animal: "fox", accessories: ["scarf", "crown"] });
+    expect(parsePicture("animal:fox")).toEqual({ animal: "fox", accessories: [] });
+  });
+
+  it("are not drawn on a photo", () => {
+    expect(pictureFor(null, "https://photo", ["crown"])).toBe("https://photo");
+    expect(parsePicture("https://photo")).toBeNull();
   });
 });

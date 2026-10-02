@@ -133,7 +133,8 @@ export default async function SettingsPage() {
           Profile
         </h2>
         <p className="text-muted-foreground mt-1 mb-4 text-xs">
-          What friends and study rooms see. Your username lets them add you without your email.
+          What friends and study rooms see. Your username lets them add you without your email,
+          and accessories for your animal are earned on the Milestones page.
         </p>
         <p className="mb-3 text-sm font-medium">Avatar</p>
         <AvatarPicker

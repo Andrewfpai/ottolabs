@@ -13,6 +13,7 @@ import {
 } from "@/features/tasks/schema";
 import { type ActionResult, fail, isForeignKeyViolation, ok } from "@/lib/action-result";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
+import { checkMilestones } from "@/features/achievements/server/sync";
 import { afterReview, firstReview } from "@/features/tasks/lib/reviews";
 import { dayKey, zonedInstant } from "@/lib/time/calendar-day";
 
@@ -142,6 +143,7 @@ export async function setTaskStatus(input: unknown): Promise<ActionResult<Task>>
   if (!updated) return fail(TASK_GONE, "NOT_FOUND");
 
   revalidateTaskViews();
+  if (status === "done") await checkMilestones(user.id);
   return ok(updated);
 }
 
@@ -202,6 +204,7 @@ export async function completeReview(input: unknown): Promise<ActionResult<{ fin
     .where(and(eq(tasks.id, task.id), eq(tasks.reviewStage, task.reviewStage)));
 
   revalidateTaskViews();
+  await checkMilestones(user.id);
   return ok({ finished: next.reviewStage === 0 });
 }
 

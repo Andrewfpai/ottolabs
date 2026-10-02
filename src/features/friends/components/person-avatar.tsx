@@ -1,6 +1,6 @@
 import { AnimalAvatar } from "@/components/animal-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { animalFromPicture } from "@/lib/avatars";
+import { parsePicture } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
 
 function initials(name: string): string {
@@ -19,11 +19,11 @@ export function PersonAvatar({
   image: string | null;
   className?: string;
 }) {
-  const animal = animalFromPicture(image);
+  const animal = parsePicture(image);
   if (animal) {
     return (
       <span className={cn("inline-flex size-9 shrink-0 overflow-hidden rounded-full", className)}>
-        <AnimalAvatar id={animal} />
+        <AnimalAvatar id={animal.animal} accessories={animal.accessories} />
       </span>
     );
   }

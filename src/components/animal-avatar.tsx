@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
-import type { AnimalAvatarId } from "@/lib/avatars";
+import { AccessoryArt, type Anchor } from "@/components/avatar-accessories";
+import type { AccessoryId, AnimalAvatarId } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,9 +40,10 @@ const sparkleEyes = (y: number, gap = 11, r = 5) => (
   </>
 );
 
-const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
+const DRAWINGS: Record<AnimalAvatarId, { bg: string; anchor: Anchor; art: ReactNode }> = {
   cat: {
     bg: "#FAECE7",
+    anchor: { eyeY: 56, eyeGap: 10, top: 30, chin: 86 },
     art: (
       <>
         <path d="M24 46 L28 18 L46 34 Z M76 46 L72 18 L54 34 Z" fill="#F2A65A" />
@@ -55,6 +57,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   panda: {
     bg: "#E1F5EE",
+    anchor: { eyeY: 56, eyeGap: 11, top: 30, chin: 86 },
     art: (
       <>
         <circle cx="27" cy="35" r="10" fill={INK} />
@@ -71,6 +74,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   bunny: {
     bg: "#EEEDFE",
+    anchor: { eyeY: 58, eyeGap: 9, top: 33, chin: 87 },
     art: (
       <>
         <ellipse cx="39" cy="24" rx="7" ry="18" fill="#FFF8F4" />
@@ -86,6 +90,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   bear: {
     bg: "#FAEEDA",
+    anchor: { eyeY: 54, eyeGap: 10, top: 30, chin: 86 },
     art: (
       <>
         <circle cx="28" cy="36" r="10" fill="#B07A4F" />
@@ -102,6 +107,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   frog: {
     bg: "#EAF3DE",
+    anchor: { eyeY: 41, eyeGap: 16, top: 28, chin: 85 },
     art: (
       <>
         <circle cx="34" cy="40" r="12" fill="#86C26A" />
@@ -118,6 +124,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   fox: {
     bg: "#FCEBEB",
+    anchor: { eyeY: 54, eyeGap: 11, top: 30, chin: 86 },
     art: (
       <>
         <path d="M22 48 L26 16 L46 34 Z M78 48 L74 16 L54 34 Z" fill="#E8783E" />
@@ -131,6 +138,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   chick: {
     bg: "#FAEEDA",
+    anchor: { eyeY: 54, eyeGap: 10, top: 30, chin: 86 },
     art: (
       <>
         <path d="M46 28 Q48 18 54 22 Q50 24 52 30 Z" fill="#EF9F27" />
@@ -143,6 +151,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   penguin: {
     bg: "#E6F1FB",
+    anchor: { eyeY: 55, eyeGap: 9, top: 26, chin: 86 },
     art: (
       <>
         <circle cx="50" cy="56" r="30" fill="#3D4451" />
@@ -155,6 +164,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   golden: {
     bg: "#FFF1D6",
+    anchor: { eyeY: 51, eyeGap: 11, top: 28, chin: 78 },
     art: (
       <>
         {/* Long feathered ears, a soft muzzle and a tennis ball. */}
@@ -180,6 +190,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   husky: {
     bg: "#E4E6F2",
+    anchor: { eyeY: 55, eyeGap: 13, top: 31, chin: 85 },
     art: (
       <>
         {/* The mask, the eyebrow spots and those ice-blue eyes. */}
@@ -206,6 +217,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   corgi: {
     bg: "#E3F0E8",
+    anchor: { eyeY: 55, eyeGap: 13, top: 31, chin: 85 },
     art: (
       <>
         {/* Huge ears, a white blaze and a little heart. */}
@@ -225,6 +237,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   koala: {
     bg: "#E8EEF4",
+    anchor: { eyeY: 55, eyeGap: 14, top: 32, chin: 86 },
     art: (
       <>
         {/* Fluffy ears, a big button nose and a leaf to wear. */}
@@ -245,6 +258,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   seal: {
     bg: "#D4ECF5",
+    anchor: { eyeY: 53, eyeGap: 13, top: 30, chin: 86 },
     art: (
       <>
         {/* A round snow-white pup with huge eyes and whisker dots. */}
@@ -268,6 +282,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   redpanda: {
     bg: "#F3EAD8",
+    anchor: { eyeY: 53, eyeGap: 13, top: 30, chin: 86 },
     art: (
       <>
         {/* White-tipped ears, eyebrow spots and tear marks. */}
@@ -287,6 +302,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   axolotl: {
     bg: PINK_BG,
+    anchor: { eyeY: 57, eyeGap: 13, top: 35, chin: 85 },
     art: (
       <>
         {/* Feathery gills, three a side. */}
@@ -310,6 +326,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   pinkpup: {
     bg: PINK_BG,
+    anchor: { eyeY: 55, eyeGap: 10, top: 22, chin: 82 },
     art: (
       <>
         {/* A fluffy pink pup: cloud ears, a pom on top and a bow. */}
@@ -339,6 +356,7 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
   hamster: {
     bg: PINK_BG,
+    anchor: { eyeY: 55, eyeGap: 10, top: 33, chin: 87 },
     art: (
       <>
         <circle cx="30" cy="37" r="8" fill="#F2B880" />
@@ -356,13 +374,28 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   },
 };
 
-/** One animal avatar, filling its box. Decorative: the name beside it says who it is. */
-export function AnimalAvatar({ id, className }: { id: AnimalAvatarId; className?: string }) {
-  const { bg, art } = DRAWINGS[id];
+/**
+ * One animal avatar, filling its box, wearing whatever it has earned.
+ * Decorative: the name beside it says who it is.
+ */
+export function AnimalAvatar({
+  id,
+  accessories = [],
+  className,
+}: {
+  id: AnimalAvatarId;
+  /** Already normalised: one per slot, in drawing order. */
+  accessories?: readonly AccessoryId[];
+  className?: string;
+}) {
+  const { bg, anchor, art } = DRAWINGS[id];
   return (
     <svg viewBox="0 0 100 100" className={cn("size-full", className)} aria-hidden focusable="false">
       <circle cx="50" cy="50" r="50" fill={bg} />
       {art}
+      {accessories.map((accessory) => (
+        <AccessoryArt key={accessory} id={accessory} anchor={anchor} />
+      ))}
     </svg>
   );
 }

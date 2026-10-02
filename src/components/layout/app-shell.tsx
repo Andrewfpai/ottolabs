@@ -9,6 +9,8 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 import { CommandPalette, openCommandPalette } from "@/features/command-palette/components/command-palette";
+import { MilestoneCelebration } from "@/features/achievements/components/milestone-celebration";
+import type { Celebration } from "@/features/achievements/server/queries";
 import { TimerBar } from "@/features/sessions/components/timer-bar";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
 import {
@@ -41,11 +43,14 @@ export function AppShell({
   user,
   signOutAction,
   activeSession,
+  celebrations,
   children,
 }: {
   user: AuthedUser;
   signOutAction: () => Promise<void>;
   activeSession: SessionWithTrack | null;
+  /** Milestones reached and not yet celebrated. */
+  celebrations: Celebration[];
   children: React.ReactNode;
 }) {
   // The drawer is modal, so the only way out of it is a nav link, the close
@@ -137,6 +142,12 @@ export function AppShell({
         <main className="min-w-0 flex-1">
           {children}
           <TimerBar initial={activeSession} />
+          {/* Keyed, so a fresh unlock remounts it and opens again. */}
+          <MilestoneCelebration
+            key={celebrations.map((c) => c.id).join(",")}
+            items={celebrations}
+            picture={user.image}
+          />
         </main>
         <CommandPalette />
       </div>

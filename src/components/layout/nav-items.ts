@@ -7,6 +7,7 @@ import {
   Layers,
   ListTodo,
   Settings,
+  Trophy,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: ChartNoAxesColumn },
+  { href: "/milestones", label: "Milestones", icon: Trophy },
   { href: "/friends", label: "Friends", icon: Users },
   { href: "/rooms", label: "Rooms", icon: DoorOpen },
 ];
