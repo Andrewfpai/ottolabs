@@ -55,11 +55,19 @@ export function AppShell({
   return (
     <div className="flex min-h-dvh">
       {/* Desktop sidebar */}
-      <aside className="bg-sidebar border-sidebar-border hidden w-60 shrink-0 flex-col gap-6 border-r p-3 lg:flex">
+      {/*
+        Pinned to the viewport: exactly one screen tall and sticky, so Settings
+        and the account menu sit at the bottom of the window on every page
+        instead of the bottom of a long page. On a very short window only the
+        nav list scrolls; the brand and the footer stay put.
+      */}
+      <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 border-r p-3 lg:flex">
         <div className="px-2 pt-2">
           <Brand />
         </div>
-        <SidebarNav />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <SidebarNav />
+        </div>
         <div className="border-sidebar-border flex items-center gap-1 border-t pt-2">
           <div className="min-w-0 flex-1">
             <UserMenu user={user} signOutAction={signOutAction} />
