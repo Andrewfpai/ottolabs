@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { AnimalAvatar } from "@/components/animal-avatar";
 import { PersonAvatar } from "@/features/friends/components/person-avatar";
 import { setAvatar } from "@/features/friends/server/actions";
-import { ANIMAL_AVATARS, type AnimalAvatarId, isAnimalAvatar } from "@/lib/avatars";
+import { ANIMAL_AVATARS, type AnimalAvatarId, currentAnimal } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
 
 type Choice = AnimalAvatarId | null;
@@ -24,7 +24,7 @@ export function AvatarPicker({
   name: string;
 }) {
   const [pending, startTransition] = useTransition();
-  const [chosen, setChosen] = useOptimistic<Choice>(isAnimalAvatar(current) ? current : null);
+  const [chosen, setChosen] = useOptimistic<Choice>(currentAnimal(current));
 
   function pick(next: Choice) {
     if (next === chosen) return;

@@ -23,7 +23,14 @@ describe("avatar pictures", () => {
   it("has unique ids, three of them in the pink set", () => {
     const ids = ANIMAL_AVATARS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(expect.arrayContaining(["axolotl", "piglet", "hamster"]));
-    expect(ids).toEqual(expect.arrayContaining(["puppy", "corgi", "koala", "seal", "redpanda"]));
+    expect(ids).toEqual(expect.arrayContaining(["axolotl", "pinkpup", "hamster"]));
+    expect(ids).toEqual(expect.arrayContaining(["golden", "husky", "corgi", "koala", "seal", "redpanda"]));
+    expect(ids).not.toContain("puppy");
+    expect(ids).not.toContain("piglet");
+  });
+
+  it("keeps people who picked a retired avatar on its replacement", () => {
+    expect(pictureFor("puppy", "https://photo")).toBe("animal:golden");
+    expect(animalFromPicture("animal:piglet")).toBe("pinkpup");
   });
 });

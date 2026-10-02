@@ -30,7 +30,7 @@ export function PersonAvatar({
 
   return (
     <Avatar className={cn("size-9", className)}>
-      {image ? <AvatarImage src={image} alt="" referrerPolicy="no-referrer" /> : null}
+      {image && !image.startsWith("animal:") ? <AvatarImage src={image} alt="" referrerPolicy="no-referrer" /> : null}
       <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
         {initials(name)}
       </AvatarFallback>

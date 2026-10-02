@@ -153,24 +153,54 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
       </>
     ),
   },
-  puppy: {
+  golden: {
     bg: "#FFF1D6",
     art: (
       <>
-        {/* Floppy ears, a tongue out and a red bandana. */}
-        <ellipse cx="25" cy="52" rx="10" ry="19" fill="#B97A3E" transform="rotate(18 25 52)" />
-        <ellipse cx="75" cy="52" rx="10" ry="19" fill="#B97A3E" transform="rotate(-18 75 52)" />
-        <circle cx="50" cy="53" r="26" fill="#EBB574" />
-        <ellipse cx="50" cy="64" rx="14" ry="10.5" fill="#FFF4E6" />
+        {/* Long feathered ears, a soft muzzle and a tennis ball. */}
+        <g fill="#C98B45">
+          <ellipse cx="25" cy="55" rx="11" ry="20" transform="rotate(16 25 55)" />
+          <circle cx="20" cy="71" r="6.5" />
+          <circle cx="28" cy="74" r="5.5" />
+          <ellipse cx="75" cy="55" rx="11" ry="20" transform="rotate(-16 75 55)" />
+          <circle cx="80" cy="71" r="6.5" />
+          <circle cx="72" cy="74" r="5.5" />
+        </g>
+        <circle cx="50" cy="53" r="25" fill="#E8B064" />
+        <path d="M43 30 Q46.5 23 50 29 Q53.5 23 57 30 Z" fill="#E8B064" />
+        <ellipse cx="50" cy="64" rx="13.5" ry="10" fill="#F8E2BC" />
         {sparkleEyes(51, 11, 4.8)}
-        <ellipse cx="50" cy="69.5" rx="3.6" ry="4.6" fill="#F07A93" />
-        <ellipse cx="50" cy="60" rx="4.6" ry="3.3" fill={INK} />
-        <path d="M50 63 Q46.5 68 43 65 M50 63 Q53.5 68 57 65" stroke={INK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        <ellipse cx="50" cy="60.5" rx="4.6" ry="3.4" fill={INK} />
+        <path d="M50 64 Q46.5 68.5 43.5 66 M50 64 Q53.5 68.5 56.5 66" stroke={INK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
         {blush(63, 19)}
-        <path d="M29 76 Q50 85 71 76 L50 95 Z" fill="#E24B4A" />
-        <circle cx="42" cy="82" r="1.6" fill="#FFFFFF" />
-        <circle cx="55" cy="83" r="1.6" fill="#FFFFFF" />
-        <circle cx="49" cy="89" r="1.6" fill="#FFFFFF" />
+        <circle cx="77" cy="79" r="7.5" fill="#C9E265" />
+        <path d="M71.5 74.5 Q76.5 79 71.5 84 M82.5 74.5 Q77.5 79 82.5 84" stroke="#FFFFFF" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      </>
+    ),
+  },
+  husky: {
+    bg: "#E4E6F2",
+    art: (
+      <>
+        {/* The mask, the eyebrow spots and those ice-blue eyes. */}
+        <path d="M22 47 L25 14 L45 33 Z M78 47 L75 14 L55 33 Z" fill="#6B7380" />
+        <path d="M28 39 L29.5 23 L39 33 Z M72 39 L70.5 23 L61 33 Z" fill="#E2D3D8" />
+        <circle cx="50" cy="58" r="27" fill="#7D8794" />
+        <path d="M50 38 Q45 49 33 54 Q25 74 50 83 Q75 74 67 54 Q55 49 50 38 Z" fill="#FFFFFF" />
+        <ellipse cx="38" cy="45" rx="4.5" ry="2.6" fill="#FFFFFF" />
+        <ellipse cx="62" cy="45" rx="4.5" ry="2.6" fill="#FFFFFF" />
+        {[37, 63].map((x) => (
+          <g key={x}>
+            <circle cx={x} cy="55" r="5.2" fill="#5BA4E6" />
+            <circle cx={x} cy="55" r="2.8" fill={INK} />
+            <circle cx={x - 1.8} cy="53" r="1.9" fill="#FFFFFF" />
+            <circle cx={x + 1.8} cy="56.6" r="0.9" fill="#FFFFFF" />
+          </g>
+        ))}
+        <ellipse cx="50" cy="65" rx="4.4" ry="3.2" fill={INK} />
+        <path d="M50 68.5 Q46.5 73 43.5 70.5 M50 68.5 Q53.5 73 56.5 70.5" stroke={INK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        {blush(69, 20)}
+        <path d="M82 18 L82 30 M76.8 21 L87.2 27 M76.8 27 L87.2 21" stroke="#85B7EB" strokeWidth="1.8" strokeLinecap="round" />
       </>
     ),
   },
@@ -278,17 +308,32 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
       </>
     ),
   },
-  piglet: {
+  pinkpup: {
     bg: PINK_BG,
     art: (
       <>
-        <path d="M24 44 L26 22 L42 34 Z M76 44 L74 22 L58 34 Z" fill="#F59BBB" />
-        <circle cx="50" cy="58" r="28" fill="#FFC4D8" />
-        {eyes(52, 11)}
-        <ellipse cx="50" cy="66" rx="11" ry="8" fill="#F59BBB" />
-        <ellipse cx="46" cy="66" rx="2" ry="3" fill="#993556" />
-        <ellipse cx="54" cy="66" rx="2" ry="3" fill="#993556" />
-        {blush(64, 21, "#EC6A98")}
+        {/* A fluffy pink pup: cloud ears, a pom on top and a bow. */}
+        <g fill="#F48FB1">
+          <circle cx="24" cy="50" r="10" />
+          <circle cx="20" cy="61" r="9" />
+          <circle cx="26" cy="70" r="8" />
+          <circle cx="76" cy="50" r="10" />
+          <circle cx="80" cy="61" r="9" />
+          <circle cx="74" cy="70" r="8" />
+        </g>
+        <g fill="#F9B4CC">
+          <circle cx="50" cy="57" r="25" />
+          <circle cx="40" cy="35" r="9" />
+          <circle cx="50" cy="31" r="10" />
+          <circle cx="60" cy="35" r="9" />
+        </g>
+        <ellipse cx="50" cy="63" rx="16" ry="13" fill="#FFD9E6" />
+        {sparkleEyes(55, 10, 4.6)}
+        <ellipse cx="50" cy="63" rx="3.6" ry="2.6" fill={INK} />
+        <path d="M50 65.5 Q47 69.5 44.5 67.5 M50 65.5 Q53 69.5 55.5 67.5" stroke={INK} strokeWidth="1.7" fill="none" strokeLinecap="round" />
+        {blush(65, 18, "#EC6A98")}
+        <path d="M67 27 L58 21 L59 33 Z M67 27 L76 21 L75 33 Z" fill="#EC6A98" />
+        <circle cx="67" cy="27" r="3.2" fill="#D4537E" />
       </>
     ),
   },
