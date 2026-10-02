@@ -17,6 +17,7 @@ import {
   isUniqueViolation,
   ok,
 } from "@/lib/action-result";
+import { getTrackOptions } from "@/features/tracks/server/queries";
 import { requireUser } from "@/lib/auth-guard";
 
 const DUPLICATE_TITLE = "You already have a track with that name.";
@@ -165,4 +166,14 @@ export async function deleteTrack(input: unknown): Promise<ActionResult> {
     }
     throw error;
   }
+}
+
+/**
+ * Your non-archived tracks, for the command palette. An action rather than a
+ * layout prop so it is fetched only when the palette opens, not on every page.
+ */
+export async function listTracksForPalette() {
+  await requireUser();
+  const options = await getTrackOptions();
+  return options.filter((track) => track.status !== "archived");
 }

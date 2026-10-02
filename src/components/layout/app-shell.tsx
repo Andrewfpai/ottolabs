@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -8,6 +8,7 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
+import { CommandPalette, openCommandPalette } from "@/features/command-palette/components/command-palette";
 import { TimerBar } from "@/features/sessions/components/timer-bar";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
 import {
@@ -65,6 +66,15 @@ export function AppShell({
         <div className="px-2 pt-2">
           <Brand />
         </div>
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-sidebar-border -my-2 flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition-colors"
+        >
+          <Search className="size-4" aria-hidden />
+          <span className="flex-1 text-left">Search…</span>
+          <kbd className="rounded border px-1.5 text-[10px]">Ctrl K</kbd>
+        </button>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <SidebarNav />
         </div>
@@ -112,6 +122,15 @@ export function AppShell({
             <Brand />
           </div>
 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 cursor-pointer"
+            aria-label="Search commands"
+            onClick={openCommandPalette}
+          >
+            <Search className="size-5" aria-hidden />
+          </Button>
           <ThemeToggle />
         </header>
 
@@ -119,6 +138,7 @@ export function AppShell({
           {children}
           <TimerBar initial={activeSession} />
         </main>
+        <CommandPalette />
       </div>
     </div>
   );
