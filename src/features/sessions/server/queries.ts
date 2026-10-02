@@ -1,9 +1,11 @@
-import { and, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, lt, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { type FocusSession, focusSessions, tracks } from "@/db/schema";
+import { containsPattern, type SessionFilters } from "@/features/sessions/lib/filters";
 import { reapStaleSessions } from "@/features/sessions/server/reaper";
-import { requireUser } from "@/lib/auth-guard";
+import { requireSettings, requireUser } from "@/lib/auth-guard";
+import { addDays, zonedInstant } from "@/lib/time/calendar-day";
 
 export type SessionWithTrack = FocusSession & {
   track: { id: string; title: string; color: string; icon: string };
@@ -52,17 +54,26 @@ export type SessionPage = {
 export async function getSessions(options?: {
   page?: number;
   pageSize?: number;
-  trackId?: string;
+  filters?: SessionFilters;
 }): Promise<SessionPage> {
   const user = await requireUser();
+  const filters = options?.filters ?? {};
 
   const pageSize = Math.min(Math.max(options?.pageSize ?? 25, 1), 100);
   const page = Math.max(options?.page ?? 1, 1);
 
+  // Date filters are calendar days in the user's zone: "to" includes the
+  // whole of its day, so the bound is the start of the day after.
+  const timeZone = filters.from || filters.to ? (await requireSettings()).timezone : "UTC";
+
   const where = and(
     eq(focusSessions.userId, user.id),
     sql`${focusSessions.endedAt} is not null`,
-    options?.trackId ? eq(focusSessions.trackId, options.trackId) : undefined,
+    filters.track ? eq(focusSessions.trackId, filters.track) : undefined,
+    filters.tag ? sql`${focusSessions.tags} @> array[${filters.tag}]::text[]` : undefined,
+    filters.from ? gte(focusSessions.startedAt, zonedInstant(filters.from, null, timeZone)) : undefined,
+    filters.to ? lt(focusSessions.startedAt, zonedInstant(addDays(filters.to, 1), null, timeZone)) : undefined,
+    filters.q ? ilike(focusSessions.note, containsPattern(filters.q)) : undefined,
   );
 
   const [{ total }] = await db
