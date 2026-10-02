@@ -36,6 +36,7 @@ import {
 import { useElapsed } from "@/features/sessions/hooks/use-elapsed";
 import { useIdleReturn } from "@/features/sessions/hooks/use-idle-return";
 import { usePomodoroEngine } from "@/features/sessions/hooks/use-pomodoro";
+import { usePomodoroAlerts } from "@/features/sessions/hooks/use-pomodoro-alerts";
 import {
   formatCountdown,
   phaseLabel,
@@ -258,6 +259,7 @@ export function TimerBar({ initial }: { initial: SessionWithTrack | null }) {
 
   useHeartbeat(session);
   const phase = usePomodoroEngine(session);
+  usePomodoroAlerts(session, phase);
   const { awayMs, dismiss } = useIdleReturn(session?.id);
 
   const inFocusMode = pathname === "/focus";

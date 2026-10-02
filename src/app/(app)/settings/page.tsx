@@ -7,6 +7,7 @@ import { DEFAULT_POMODORO } from "@/db/schema";
 import { AccessManager } from "@/features/access/components/access-manager";
 import { getAccessList } from "@/features/access/server/queries";
 import { SharingToggles } from "@/features/friends/components/sharing-toggles";
+import { PomodoroAlertSettings } from "@/features/sessions/components/pomodoro-alert-settings";
 import { getMySharing } from "@/features/friends/server/queries";
 import { DeleteAccount } from "@/features/settings/components/delete-account";
 import { SettingsForm } from "@/features/settings/components/settings-form";
@@ -73,6 +74,16 @@ export default async function SettingsPage() {
         }}
         timeZones={supportedTimeZones(settings.timezone)}
       />
+
+      <section aria-labelledby="alerts-heading" className="bg-card mt-6 rounded-xl border p-4 sm:p-6">
+        <h2 id="alerts-heading" className="text-sm font-medium">
+          Pomodoro alerts on this device
+        </h2>
+        <p className="text-muted-foreground mt-1 mb-4 text-xs">
+          Saved in this browser, so your laptop and phone can differ.
+        </p>
+        <PomodoroAlertSettings />
+      </section>
 
       <section
         id="sharing"

@@ -12,7 +12,6 @@ import {
   type PomodoroPhase,
   type PomodoroSnapshot,
 } from "@/features/sessions/lib/pomodoro";
-import { playChime } from "@/features/sessions/lib/chime";
 import { now as clockNow } from "@/lib/time/clock";
 
 /** True while the tab is in the foreground. */
@@ -101,12 +100,12 @@ export function usePomodoroEngine(
     if (firedFor.current === key) return;
     firedFor.current = key;
 
+    // The bell is not rung here: usePomodoroAlerts rings when the phase ends,
+    // even in a background tab, and this switch may come much later.
     if (kind === "work") {
       startBreak.mutate({ id: sessionId });
-      playChime("break");
     } else {
       resume.mutate({ id: sessionId });
-      playChime("work");
     }
   }, [sessionId, isOver, visible, busy, kind, completedCycles, startBreak, resume]);
 
