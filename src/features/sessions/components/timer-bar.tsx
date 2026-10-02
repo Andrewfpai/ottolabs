@@ -101,7 +101,12 @@ function TimerBarInner({
 
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 truncate text-xs font-medium">
-            {session.track.title}
+            <span className="truncate">
+              {session.track.title}
+              {session.task ? (
+                <span className="text-muted-foreground font-normal"> · {session.task.title}</span>
+              ) : null}
+            </span>
             {phase ? (
               <span
                 className={cn(

@@ -22,6 +22,8 @@ function revalidateTaskViews() {
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   revalidatePath("/dashboard");
+  // Track cards list each track's open tasks.
+  revalidatePath("/tracks");
 }
 
 /**

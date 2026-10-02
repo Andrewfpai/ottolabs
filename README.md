@@ -225,14 +225,13 @@ show; changes from another device can take up to 30 s.
 - `public/sw.js` only shows notifications. No fetch handler, no cache.
 - iPhone and iPad receive push only from the Home Screen app (iOS 16.4+).
 
-## Study plans
+## Tasks as sub-items of a track
 
-Each track can hold an ordered list of chapters, units, modules… (`track_units`,
-with the word stored per track in `tracks.unit_label`). Paste a table of
-contents, one per line; list markers and "Chapter 3:" prefixes are stripped.
-Progress reads from the first unit not yet done, so a card says "Chapter 6 of
-12" even if Chapter 9 was ticked off early. The rules live in
-`features/study-plan/lib/plan.ts`; the card and the track page both use them.
+A task filed under a track appears on that track's card. Pick one there (or use
+Start timer in the task's menu) and the session records to it through
+`focus_sessions.task_id`, so the time counts toward the track and toward the
+task. Starting moves a to-do to in progress; the finish dialog can tick it off.
+Deleting a task keeps its time on the track (`on delete set null`).
 
 ## The stale-session reaper
 

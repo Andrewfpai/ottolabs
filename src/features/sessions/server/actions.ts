@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import { db } from "@/db";
-import { DEFAULT_POMODORO, focusSessions, tracks } from "@/db/schema";
+import { DEFAULT_POMODORO, focusSessions, tasks, tracks } from "@/db/schema";
 import {
   finishSessionSchema,
   manualSessionSchema,
@@ -80,12 +80,32 @@ export async function startSession(
     return fail("You are not in that room any more.", "NOT_FOUND");
   }
 
+  // The task id comes from the client too: it must be the caller's, filed
+  // under this track, and still open.
+  let task: { id: string; title: string; status: string } | null = null;
+  if (parsed.data.taskId) {
+    task =
+      (await db.query.tasks.findFirst({
+        where: and(
+          eq(tasks.id, parsed.data.taskId),
+          eq(tasks.userId, user.id),
+          eq(tasks.trackId, track.id),
+        ),
+        columns: { id: true, title: true, status: true },
+      })) ?? null;
+    if (!task) return fail("That task is no longer under this track.", "NOT_FOUND");
+    if (task.status === "done" || task.status === "cancelled") {
+      return fail("That task is closed. Reopen it first.", "CLOSED");
+    }
+  }
+
   const settings = await requireSettings();
 
   try {
     const created = await insertLiveSession({
       userId: user.id,
       trackId: track.id,
+      taskId: task?.id ?? null,
       roomId,
       mode: parsed.data.mode,
       pomodoroConfig:
@@ -93,6 +113,15 @@ export async function startSession(
           ? (settings.defaultPomodoro ?? DEFAULT_POMODORO)
           : null,
     });
+
+    // Starting work on a to-do means it is in progress now.
+    if (task?.status === "todo") {
+      await db
+        .update(tasks)
+        .set({ status: "in_progress", updatedAt: new Date() })
+        .where(and(eq(tasks.id, task.id), eq(tasks.status, "todo")));
+      revalidatePath("/tasks");
+    }
 
     revalidatePath("/tracks");
     if (roomId) {
@@ -108,6 +137,7 @@ export async function startSession(
         color: track.color,
         icon: track.icon,
       },
+      task: task ? { id: task.id, title: task.title } : null,
     });
   } catch (error) {
     // The partial unique index makes a second concurrent timer impossible.
@@ -220,6 +250,14 @@ export async function finishSession(
 
   if (!finished) {
     return fail("That timer has already been stopped.", "NOT_RUNNING");
+  }
+
+  if (parsed.data.completeTask && finished.taskId) {
+    await db
+      .update(tasks)
+      .set({ status: "done", completedAt: sql`coalesce(${tasks.completedAt}, now())`, updatedAt: new Date() })
+      .where(and(eq(tasks.id, finished.taskId), eq(tasks.userId, user.id)));
+    revalidatePath("/tasks");
   }
 
   revalidateSessionViews();
@@ -348,7 +386,10 @@ export async function updateSession(input: unknown): Promise<ActionResult> {
   await db
     .update(focusSessions)
     .set({
-      ...(changes.trackId ? { trackId: changes.trackId } : {}),
+      // A task belongs to one track, so moving the session off it drops the task.
+      ...(changes.trackId && changes.trackId !== existing.trackId
+        ? { trackId: changes.trackId, taskId: null }
+        : {}),
       startedAt,
       endedAt,
       pausedMs,

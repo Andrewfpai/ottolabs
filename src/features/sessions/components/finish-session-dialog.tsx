@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { TrackIcon } from "@/components/track-icon";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ export function FinishSessionDialog({
 }) {
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [completeTask, setCompleteTask] = useState(false);
   const finish = useFinishSession();
   const queryClient = useQueryClient();
   const suggestions = useMyTags(open);
@@ -60,11 +62,15 @@ export function FinishSessionDialog({
 
   async function submit() {
     try {
-      const result = await finish.mutateAsync({ id: session.id, note, tags });
-      toast.success(`Logged ${formatCompact(result.elapsedMs)} on ${session.track.title}.`);
+      const result = await finish.mutateAsync({ id: session.id, note, tags, completeTask });
+      toast.success(
+        `Logged ${formatCompact(result.elapsedMs)} on ${session.task?.title ?? session.track.title}.` +
+          (session.task && completeTask ? " Task done." : ""),
+      );
       if (tags.length > 0) void queryClient.invalidateQueries({ queryKey: MY_TAGS_KEY });
       setNote("");
       setTags([]);
+      setCompleteTask(false);
       onOpenChange(false);
     } catch {
       // useSessionMutation already surfaced the error as a toast.
@@ -85,7 +91,12 @@ export function FinishSessionDialog({
             >
               <TrackIcon name={session.track.icon} className="size-3.5" />
             </span>
-            {session.track.title}
+            <span className="min-w-0 truncate">
+              {session.track.title}
+              {session.task ? (
+                <span className="text-muted-foreground font-normal"> · {session.task.title}</span>
+              ) : null}
+            </span>
           </DialogTitle>
           <DialogDescription>
             <span className="font-numeric text-foreground text-3xl font-medium">
@@ -123,6 +134,17 @@ export function FinishSessionDialog({
           </label>
           <TagInput id="session-tags" value={tags} onChange={setTags} suggestions={suggestions} />
         </div>
+
+        {session.task ? (
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox
+              checked={completeTask}
+              onCheckedChange={(checked) => setCompleteTask(checked === true)}
+              className="cursor-pointer"
+            />
+            Mark “{session.task.title}” as done
+          </label>
+        ) : null}
 
         <DialogFooter className="gap-2 sm:gap-2">
           <Button

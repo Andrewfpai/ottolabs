@@ -26,6 +26,7 @@ import {
 
 import { users } from "./auth";
 import { studyRooms } from "./rooms";
+import { tasks } from "./tasks";
 import { tracks } from "./tracks";
 
 export const sessionModeEnum = pgEnum("session_mode", ["stopwatch", "pomodoro"]);
@@ -95,6 +96,13 @@ export const focusSessions = pgTable(
      */
     roomId: uuid("room_id").references(() => studyRooms.id, { onDelete: "set null" }),
 
+    /**
+     * The task the time went to, if one was picked — a sub-item of the
+     * track ("Homework 1" under Calculus). set null: deleting a task keeps
+     * the time on its track.
+     */
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+
     /** Updated ~every 60s while running. Drives the stale-session reaper. */
     lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true }),
     endReason: sessionEndReasonEnum("end_reason"),
@@ -116,6 +124,10 @@ export const focusSessions = pgTable(
     index("focus_sessions_room_started_idx")
       .on(t.roomId, t.startedAt)
       .where(sql`${t.roomId} is not null`),
+    // Per-task totals on the track cards and the task list.
+    index("focus_sessions_task_idx")
+      .on(t.taskId)
+      .where(sql`${t.taskId} is not null`),
     // Partial index the reaper cron scans every 15 minutes.
     index("focus_sessions_live_heartbeat_idx")
       .on(t.lastHeartbeatAt)
@@ -126,6 +138,7 @@ export const focusSessions = pgTable(
 export const focusSessionsRelations = relations(focusSessions, ({ one }) => ({
   user: one(users, { fields: [focusSessions.userId], references: [users.id] }),
   track: one(tracks, { fields: [focusSessions.trackId], references: [tracks.id] }),
+  task: one(tasks, { fields: [focusSessions.taskId], references: [tasks.id] }),
 }));
 
 export type FocusSession = typeof focusSessions.$inferSelect;

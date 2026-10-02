@@ -8,6 +8,7 @@ import {
   Flag,
   MoreVertical,
   Pencil,
+  Play,
   RotateCcw,
   Trash2,
   Undo2,
@@ -25,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useActiveSession, useStartSession } from "@/features/sessions/hooks/use-active-session";
 import { describeDue, isOpen, type TaskStatus } from "@/features/tasks/lib/due";
 import { DUE_TONE_CLASSES, PRIORITY_META } from "@/features/tasks/lib/labels";
 import { setTaskStatus } from "@/features/tasks/server/actions";
@@ -59,6 +61,8 @@ export function TaskRow({
   // The checkbox answers instantly; the row moves to its new section when the
   // revalidated list arrives a moment later.
   const [status, setOptimisticStatus] = useOptimistic(task.status);
+  const start = useStartSession();
+  const { data: active } = useActiveSession();
 
   const open = isOpen(status);
   const due = open ? describeDue(task, now, timeZone) : null;
@@ -187,6 +191,20 @@ export function TaskRow({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
+          {open && task.track ? (
+            // A timer records to a task only through its track, so a task
+            // without one has nothing to start.
+            <DropdownMenuItem
+              className="cursor-pointer gap-2"
+              disabled={Boolean(active) || start.isPending}
+              onSelect={() =>
+                start.mutate({ trackId: task.track!.id, mode: "stopwatch", taskId: task.id })
+              }
+            >
+              <Play className="size-4" aria-hidden />
+              {active ? "A timer is already running" : "Start timer"}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem className="cursor-pointer gap-2" onSelect={() => onEdit(task)}>
             <Pencil className="size-4" aria-hidden />
             Edit

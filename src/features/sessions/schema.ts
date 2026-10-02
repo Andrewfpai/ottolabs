@@ -7,6 +7,8 @@ export const startSessionSchema = z.object({
   mode: z.enum(["stopwatch", "pomodoro"]).default("stopwatch"),
   /** Started from inside a study room; counted toward that room's totals. */
   roomId: z.uuid().optional(),
+  /** A task under that track the time goes to. */
+  taskId: z.uuid().optional(),
 });
 
 export const sessionIdSchema = z.object({ id: z.uuid() });
@@ -27,6 +29,8 @@ export const finishSessionSchema = z.object({
     .nullish()
     .transform((value) => (value ? value : null)),
   tags: tagsSchema.default([]),
+  /** Also tick off the session's task. */
+  completeTask: z.boolean().default(false),
 });
 
 /**

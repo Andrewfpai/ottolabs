@@ -163,6 +163,9 @@ export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
           <h1 className="text-xl font-medium tracking-tight text-balance">
             {session.track.title}
           </h1>
+          {session.task ? (
+            <p className="text-muted-foreground -mt-1 text-sm text-balance">{session.task.title}</p>
+          ) : null}
           {phase ? (
             <span
               className={cn(

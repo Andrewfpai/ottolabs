@@ -5,6 +5,8 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  Circle,
+  CircleDot,
   Loader2,
   MoreVertical,
   Pencil,
@@ -26,13 +28,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useStartSession } from "@/features/sessions/hooks/use-active-session";
+import type { TrackTask } from "@/features/tasks/server/queries";
 import type { TrackWithStats } from "@/features/tracks/server/queries";
 import {
   archiveTrack,
   deleteTrack,
   unarchiveTrack,
 } from "@/features/tracks/server/actions";
-import { type PlanProgress, progressLabel } from "@/features/study-plan/lib/plan";
 import { formatCompact } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
@@ -47,26 +49,40 @@ function relativeDay(date: Date | null): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
+/** How many open tasks a card lists before linking to the rest. */
+const TASKS_SHOWN = 4;
+
 export function TrackCard({
   track,
-  plan,
+  tasks,
   onEdit,
   hasActiveSession,
 }: {
   track: TrackWithStats;
-  /** Study plan progress, when the track has a plan. */
-  plan?: PlanProgress;
+  /** Open tasks filed under the track, in the order to pick from. */
+  tasks: TrackTask[];
   onEdit: (track: TrackWithStats) => void;
   hasActiveSession: boolean;
 }) {
   const start = useStartSession();
   const [pending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The task the next Start records to. Looked up, not stored, so a task
+  // finished elsewhere simply stops being selected.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = tasks.find((task) => task.id === selectedId) ?? null;
   const reduceMotion = useReducedMotion();
 
   const colors = trackColorClasses(track.color);
   const isArchived = track.status === "archived";
   const startDisabled = start.isPending || pending || hasActiveSession;
+
+  function startOn(mode: "stopwatch" | "pomodoro") {
+    start.mutate(
+      { trackId: track.id, mode, taskId: selected?.id },
+      { onSuccess: () => setSelectedId(null) },
+    );
+  }
 
   function runAction(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -175,7 +191,18 @@ export function TrackCard({
         </DropdownMenu>
       </div>
 
-      <div className="mt-4 flex items-end justify-between gap-3">
+      {!isArchived && tasks.length > 0 ? (
+        <TaskPicker
+          trackId={track.id}
+          tasks={tasks}
+          selectedId={selected?.id ?? null}
+          onSelect={setSelectedId}
+          selectedClass={cn(colors.surface, colors.text)}
+        />
+      ) : null}
+
+      {/* mt-auto keeps Start on the same line across cards of different heights. */}
+      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
         <div>
           <p className="font-numeric text-2xl leading-none font-medium">
             {formatCompact(track.totalMs)}
@@ -185,14 +212,6 @@ export function TrackCard({
             {" · "}
             {relativeDay(track.lastActiveAt)}
           </p>
-          {plan && plan.total > 0 ? (
-            <div className="mt-2.5 w-36 max-w-full">
-              <p className="text-xs font-medium">{progressLabel(track.unitLabel, plan)}</p>
-              <div className={cn("mt-1 h-1 overflow-hidden rounded-full", colors.surface)} aria-hidden>
-                <div className={cn("h-full rounded-full", colors.bg)} style={{ width: `${(plan.done / plan.total) * 100}%` }} />
-              </div>
-            </div>
-          ) : null}
         </div>
 
         {!isArchived ? (
@@ -209,9 +228,9 @@ export function TrackCard({
               title={
                 hasActiveSession
                   ? "Finish the running timer first"
-                  : `Start a session on ${track.title}`
+                  : `Start a session on ${selected ? selected.title : track.title}`
               }
-              onClick={() => start.mutate({ trackId: track.id, mode: "stopwatch" })}
+              onClick={() => startOn("stopwatch")}
             >
               {start.isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -219,6 +238,7 @@ export function TrackCard({
                 <Play className="size-3.5 fill-current" aria-hidden />
               )}
               Start
+              {selected ? <span className="sr-only"> on {selected.title}</span> : null}
             </Button>
 
             <DropdownMenu>
@@ -237,7 +257,7 @@ export function TrackCard({
                 <DropdownMenuItem
                   className="cursor-pointer gap-2"
                   onSelect={() =>
-                    start.mutate({ trackId: track.id, mode: "stopwatch" })
+                    startOn("stopwatch")
                   }
                 >
                   <Play className="size-4" aria-hidden />
@@ -246,7 +266,7 @@ export function TrackCard({
                 <DropdownMenuItem
                   className="cursor-pointer gap-2"
                   onSelect={() =>
-                    start.mutate({ trackId: track.id, mode: "pomodoro" })
+                    startOn("pomodoro")
                   }
                 >
                   <Timer className="size-4" aria-hidden />
@@ -258,5 +278,72 @@ export function TrackCard({
         ) : null}
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * The track's open tasks, as a pick-one list: choosing one makes Start record
+ * to it. Choosing it again goes back to the track as a whole.
+ */
+function TaskPicker({
+  trackId,
+  tasks,
+  selectedId,
+  onSelect,
+  selectedClass,
+}: {
+  trackId: string;
+  tasks: TrackTask[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  selectedClass: string;
+}) {
+  const shown = tasks.slice(0, TASKS_SHOWN);
+  const more = tasks.length - shown.length;
+
+  return (
+    <div className="mt-3 border-t pt-3">
+      <p className="text-muted-foreground mb-1 text-xs">
+        {selectedId ? "Start records to the picked task" : "Pick a task to record to"}
+      </p>
+      <ul className="-mx-2 space-y-0.5">
+        {shown.map((task) => {
+          const picked = task.id === selectedId;
+          const Icon = picked ? CircleDot : Circle;
+          return (
+            <li key={task.id}>
+              <button
+                type="button"
+                aria-pressed={picked}
+                onClick={() => onSelect(picked ? null : task.id)}
+                className={cn(
+                  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors",
+                  picked ? selectedClass : "hover:bg-muted/60",
+                )}
+              >
+                <Icon className="size-3.5 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                {task.status === "in_progress" ? (
+                  <span className="sr-only">, in progress</span>
+                ) : null}
+                {task.focusMs > 0 ? (
+                  <span className="text-muted-foreground tabular shrink-0 text-xs">
+                    {formatCompact(task.focusMs)}
+                  </span>
+                ) : null}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {more > 0 ? (
+        <Link
+          href={`/tasks?track=${trackId}`}
+          className="text-muted-foreground mt-1 inline-block text-xs underline-offset-4 hover:underline"
+        >
+          {more} more {more === 1 ? "task" : "tasks"}
+        </Link>
+      ) : null}
+    </div>
   );
 }

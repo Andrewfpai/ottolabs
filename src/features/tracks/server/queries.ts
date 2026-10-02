@@ -27,9 +27,10 @@ export type TrackWithStats = Track & {
  * an open pause measured to the session's end. Live sessions are excluded —
  * a running timer's contribution changes every second, so including it here
  * would make a server-rendered total wrong the moment it reached the browser.
- * The timer bar shows the live portion separately.
+ * The timer bar shows the live portion separately. Only valid over a join
+ * that admits finished sessions alone.
  */
-const FOCUS_MS = sql<string>`coalesce(sum(
+export const FOCUS_MS = sql<string>`coalesce(sum(
   extract(epoch from (${focusSessions.endedAt} - ${focusSessions.startedAt})) * 1000
   - ${focusSessions.pausedMs}
   - case

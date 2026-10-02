@@ -1,8 +1,9 @@
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { type Task, tasks, tracks } from "@/db/schema";
+import { focusSessions, type Task, tasks, tracks } from "@/db/schema";
 import { groupOpenTasks, type OpenBucket } from "@/features/tasks/lib/due";
+import { FOCUS_MS } from "@/features/tracks/server/queries";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
 import { type DayKey, dayKey } from "@/lib/time/calendar-day";
 
@@ -121,4 +122,59 @@ export async function getTasksForStats() {
     })
     .from(tasks)
     .where(eq(tasks.userId, user.id));
+}
+
+/** An open task as a track card lists it. */
+export type TrackTask = Pick<Task, "id" | "title" | "status" | "priority" | "dueAt" | "isAllDay"> & {
+  /** Finished focus time recorded against the task. */
+  focusMs: number;
+};
+
+/**
+ * Every open task filed under a track, grouped by track, with the time
+ * already put into each. In progress first, then by deadline (none last),
+ * then priority — the order you would pick the next one in.
+ */
+export async function getOpenTasksByTrack(): Promise<Record<string, TrackTask[]>> {
+  const user = await requireUser();
+
+  const rows = await db
+    .select({
+      trackId: tasks.trackId,
+      id: tasks.id,
+      title: tasks.title,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueAt: tasks.dueAt,
+      isAllDay: tasks.isAllDay,
+      focusMs: FOCUS_MS,
+    })
+    .from(tasks)
+    .leftJoin(
+      focusSessions,
+      and(eq(focusSessions.taskId, tasks.id), sql`${focusSessions.endedAt} is not null`),
+    )
+    .where(
+      and(
+        eq(tasks.userId, user.id),
+        inArray(tasks.status, ["todo", "in_progress"]),
+        sql`${tasks.trackId} is not null`,
+      ),
+    )
+    .groupBy(tasks.id)
+    .orderBy(
+      sql`${tasks.status} = 'in_progress' desc`,
+      sql`${tasks.dueAt} asc nulls last`,
+      tasks.priority,
+      tasks.sortOrder,
+      tasks.createdAt,
+    );
+
+  const byTrack: Record<string, TrackTask[]> = {};
+  for (const { trackId, focusMs, ...task } of rows) {
+    if (!trackId) continue;
+    // Postgres returns numeric aggregates as strings.
+    (byTrack[trackId] ??= []).push({ ...task, focusMs: Math.max(0, Math.round(Number(focusMs))) });
+  }
+  return byTrack;
 }

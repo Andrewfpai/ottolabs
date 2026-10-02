@@ -29,6 +29,7 @@ export async function insertLiveSession(params: {
   mode: "stopwatch" | "pomodoro";
   pomodoroConfig: PomodoroConfig | null;
   roomId?: string | null;
+  taskId?: string | null;
 }): Promise<FocusSession> {
   const [created] = await db
     .insert(focusSessions)
@@ -40,6 +41,7 @@ export async function insertLiveSession(params: {
       mode: params.mode,
       pomodoroConfig: params.pomodoroConfig,
       roomId: params.roomId ?? null,
+      taskId: params.taskId ?? null,
     })
     .returning();
 

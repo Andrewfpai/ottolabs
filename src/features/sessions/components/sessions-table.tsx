@@ -170,7 +170,14 @@ export function SessionsTable({
                       >
                         <TrackIcon name={session.track.icon} className="size-3.5" />
                       </span>
-                      <span className="truncate text-sm">{session.track.title}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm">{session.track.title}</span>
+                        {session.task ? (
+                          <span className="text-muted-foreground block truncate text-xs">
+                            {session.task.title}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                   </TableCell>
 

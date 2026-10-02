@@ -43,9 +43,6 @@ export const tracks = pgTable(
     /** Weekly goal. Null = no target set for this track. */
     targetMinutesPerWeek: integer("target_minutes_per_week"),
 
-    /** What the study plan calls its parts: "Chapter 6 of 12". */
-    unitLabel: text("unit_label").notNull().default("Unit"),
-
     sortOrder: integer("sort_order").notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })

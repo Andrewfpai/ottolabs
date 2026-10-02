@@ -7,7 +7,7 @@ import { useState } from "react";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { useActiveSession } from "@/features/sessions/hooks/use-active-session";
-import type { PlanProgress } from "@/features/study-plan/lib/plan";
+import type { TrackTask } from "@/features/tasks/server/queries";
 import { TrackCard } from "@/features/tracks/components/track-card";
 import { TrackFormDialog } from "@/features/tracks/components/track-form-dialog";
 import type { TrackWithStats } from "@/features/tracks/server/queries";
@@ -15,11 +15,11 @@ import { suggestTrackColor } from "@/lib/track-colors";
 
 export function TracksGrid({
   tracks,
-  plans = {},
+  tasks = {},
 }: {
   tracks: TrackWithStats[];
-  /** Study plan progress by track id; tracks without a plan are absent. */
-  plans?: Record<string, PlanProgress>;
+  /** Open tasks per track id. */
+  tasks?: Record<string, TrackTask[]>;
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TrackWithStats | undefined>();
@@ -80,7 +80,7 @@ export function TracksGrid({
             <TrackCard
               key={track.id}
               track={track}
-              plan={plans[track.id]}
+              tasks={tasks[track.id] ?? []}
               onEdit={openEdit}
               hasActiveSession={Boolean(active)}
             />
@@ -98,7 +98,7 @@ export function TracksGrid({
               <TrackCard
                 key={track.id}
                 track={track}
-              plan={plans[track.id]}
+                tasks={tasks[track.id] ?? []}
                 onEdit={openEdit}
                 hasActiveSession={Boolean(active)}
               />

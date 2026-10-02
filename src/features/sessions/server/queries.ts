@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, ilike, isNull, lt, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { type FocusSession, focusSessions, tracks } from "@/db/schema";
+import { type FocusSession, focusSessions, tasks, tracks } from "@/db/schema";
 import { containsPattern, type SessionFilters } from "@/features/sessions/lib/filters";
 import { reapStaleSessions } from "@/features/sessions/server/reaper";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
@@ -9,6 +9,8 @@ import { addDays, zonedInstant } from "@/lib/time/calendar-day";
 
 export type SessionWithTrack = FocusSession & {
   track: { id: string; title: string; color: string; icon: string };
+  /** The task the time went to; null when none was picked or it was deleted. */
+  task: { id: string; title: string } | null;
 };
 
 const trackShape = {
@@ -17,6 +19,23 @@ const trackShape = {
   color: tracks.color,
   icon: tracks.icon,
 };
+
+/** Sessions with their track and, when there is one, their task. */
+function selectSessions() {
+  return db
+    .select({ session: focusSessions, track: trackShape, task: { id: tasks.id, title: tasks.title } })
+    .from(focusSessions)
+    .innerJoin(tracks, eq(tracks.id, focusSessions.trackId))
+    .leftJoin(tasks, eq(tasks.id, focusSessions.taskId));
+}
+
+type SessionRow = Awaited<ReturnType<typeof selectSessions>>[number];
+
+const toSession = (row: SessionRow): SessionWithTrack => ({
+  ...row.session,
+  track: row.track,
+  task: row.task,
+});
 
 /**
  * The one session currently running, if any. Not a pure read: an abandoned
@@ -32,16 +51,13 @@ export async function getActiveSession(): Promise<SessionWithTrack | null> {
   // laptop opened the next morning does not show a fourteen-hour session.
   await reapStaleSessions(user.id);
 
-  const [row] = await db
-    .select({ session: focusSessions, track: trackShape })
-    .from(focusSessions)
-    .innerJoin(tracks, eq(tracks.id, focusSessions.trackId))
+  const [row] = await selectSessions()
     .where(
       and(eq(focusSessions.userId, user.id), isNull(focusSessions.endedAt)),
     )
     .limit(1);
 
-  return row ? { ...row.session, track: row.track } : null;
+  return row ? toSession(row) : null;
 }
 
 export type SessionPage = {
@@ -81,17 +97,14 @@ export async function getSessions(options?: {
     .from(focusSessions)
     .where(where);
 
-  const rows = await db
-    .select({ session: focusSessions, track: trackShape })
-    .from(focusSessions)
-    .innerJoin(tracks, eq(tracks.id, focusSessions.trackId))
+  const rows = await selectSessions()
     .where(where)
     .orderBy(desc(focusSessions.startedAt))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
   return {
-    sessions: rows.map((r) => ({ ...r.session, track: r.track })),
+    sessions: rows.map(toSession),
     total,
     page,
     pageCount: Math.max(1, Math.ceil(total / pageSize)),
@@ -113,10 +126,7 @@ export async function findOverlappingSessions(
 ): Promise<SessionWithTrack[]> {
   const user = await requireUser();
 
-  const rows = await db
-    .select({ session: focusSessions, track: trackShape })
-    .from(focusSessions)
-    .innerJoin(tracks, eq(tracks.id, focusSessions.trackId))
+  const rows = await selectSessions()
     .where(
       and(
         eq(focusSessions.userId, user.id),
@@ -128,7 +138,7 @@ export async function findOverlappingSessions(
     )
     .limit(3);
 
-  return rows.map((r) => ({ ...r.session, track: r.track }));
+  return rows.map(toSession);
 }
 
 export async function getSessionById(
@@ -136,14 +146,11 @@ export async function getSessionById(
 ): Promise<SessionWithTrack | null> {
   const user = await requireUser();
 
-  const [row] = await db
-    .select({ session: focusSessions, track: trackShape })
-    .from(focusSessions)
-    .innerJoin(tracks, eq(tracks.id, focusSessions.trackId))
+  const [row] = await selectSessions()
     .where(and(eq(focusSessions.id, id), eq(focusSessions.userId, user.id)))
     .limit(1);
 
-  return row ? { ...row.session, track: row.track } : null;
+  return row ? toSession(row) : null;
 }
 
 /** Finished sessions that started within the window, oldest first. */
@@ -153,10 +160,7 @@ export async function getSessionsInRange(
 ): Promise<SessionWithTrack[]> {
   const user = await requireUser();
 
-  const rows = await db
-    .select({ session: focusSessions, track: trackShape })
-    .from(focusSessions)
-    .innerJoin(tracks, eq(tracks.id, focusSessions.trackId))
+  const rows = await selectSessions()
     .where(
       and(
         eq(focusSessions.userId, user.id),
@@ -167,5 +171,5 @@ export async function getSessionsInRange(
     )
     .orderBy(focusSessions.startedAt);
 
-  return rows.map((r) => ({ ...r.session, track: r.track }));
+  return rows.map(toSession);
 }
