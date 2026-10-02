@@ -166,15 +166,19 @@ and the manifest lives in `src/app/manifest.ts`.
 
 ## The stale-session reaper
 
-`vercel.json` schedules `/api/cron/reap-sessions` every 15 minutes. It closes
-any live session whose heartbeat is more than 30 minutes stale, **at the last
-heartbeat** rather than at the moment it noticed — so a closed laptop logs the
-90 minutes you actually studied instead of 13 hours of fiction.
+A timer whose heartbeat has been silent for 30 minutes is closed **at its last
+heartbeat** rather than at the moment it is noticed, so a closed laptop logs
+the 90 minutes you actually studied instead of 13 hours of fiction. The logic
+lives in `src/features/sessions/server/reaper.ts` and runs two ways:
 
-Vercel's Hobby plan has historically limited cron jobs to one run per day;
-check what your plan allows and widen the schedule if a deploy rejects it. The
-route refuses to run without `CRON_SECRET` in the `Authorization` header, so it
-is safe to leave exposed.
+- **Lazily**, for you, every time the app reads your running session. Opening
+  the app the next morning shows yesterday's session already closed.
+- **Daily**, for everyone, via `/api/cron/reap-sessions` (scheduled in
+  `vercel.json` at 20:00 UTC). This is only a backstop for timers nobody comes
+  back to, which is why Vercel Hobby's once-a-day cron limit is enough.
+
+The route refuses to run without `CRON_SECRET` in the `Authorization` header,
+so it is safe to leave exposed.
 
 ## Stack
 

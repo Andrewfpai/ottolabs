@@ -2,6 +2,7 @@ import { and, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { type FocusSession, focusSessions, tracks } from "@/db/schema";
+import { reapStaleSessions } from "@/features/sessions/server/reaper";
 import { requireUser } from "@/lib/auth-guard";
 
 export type SessionWithTrack = FocusSession & {
@@ -16,13 +17,18 @@ const trackShape = {
 };
 
 /**
- * The one session currently running, if any.
+ * The one session currently running, if any. Not a pure read: an abandoned
+ * session is reaped first (see `reapStaleSessions`).
  *
  * A partial unique index guarantees there is at most one, so this returning a
  * single row is a database guarantee rather than an assumption.
  */
 export async function getActiveSession(): Promise<SessionWithTrack | null> {
   const user = await requireUser();
+
+  // Close a timer abandoned since the last visit before reporting it, so a
+  // laptop opened the next morning does not show a fourteen-hour session.
+  await reapStaleSessions(user.id);
 
   const [row] = await db
     .select({ session: focusSessions, track: trackShape })
