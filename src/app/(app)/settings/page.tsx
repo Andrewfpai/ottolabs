@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_POMODORO } from "@/db/schema";
+import { AccessManager } from "@/features/access/components/access-manager";
+import { getAccessList } from "@/features/access/server/queries";
 import { SettingsForm } from "@/features/settings/components/settings-form";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
 
@@ -40,7 +42,11 @@ function supportedTimeZones(current: string): string[] {
 }
 
 export default async function SettingsPage() {
-  const [user, settings] = await Promise.all([requireUser(), requireSettings()]);
+  const [user, settings, access] = await Promise.all([
+    requireUser(),
+    requireSettings(),
+    getAccessList(),
+  ]);
   const pomodoro = settings.defaultPomodoro ?? DEFAULT_POMODORO;
 
   return (
@@ -62,6 +68,19 @@ export default async function SettingsPage() {
         }}
         timeZones={supportedTimeZones(settings.timezone)}
       />
+
+      {access ? (
+        <section aria-labelledby="access-heading" className="bg-card mt-6 rounded-xl border p-4 sm:p-6">
+          <h2 id="access-heading" className="text-sm font-medium">
+            Access
+          </h2>
+          <p className="text-muted-foreground mt-1 mb-4 text-xs">
+            Only you see this, as an owner. Owners come from ALLOWED_EMAILS in Vercel; everyone
+            else is invited here.
+          </p>
+          <AccessManager access={access} timeZone={settings.timezone} />
+        </section>
+      ) : null}
 
       <section aria-labelledby="export-heading" className="bg-card mt-6 rounded-xl border p-4 sm:p-6">
         <h2 id="export-heading" className="text-sm font-medium">

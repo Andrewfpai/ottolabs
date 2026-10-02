@@ -42,8 +42,15 @@ Google OAuth client. Both are free.
    `AUTH_GOOGLE_SECRET`.
 
 `AUTH_SECRET`, `CRON_SECRET` and `ALLOWED_EMAILS` are already filled in.
-Only addresses in `ALLOWED_EMAILS` can sign in — everyone else is rejected, and
-an empty allowlist rejects everyone.
+`ALLOWED_EMAILS` names the **owners**: always allowed in, and the only people
+who can invite others. Everyone else needs an invite, added by an owner under
+**Settings → Access** and stored in the `allowed_emails` table. Owners live in
+the environment on purpose — on an empty database something outside the app
+has to say who the owner is — and they can never be locked out by an edit in
+the app. Each invited person gets their own separate data.
+
+Removing an invite signs that person out on every device. Access is re-checked
+on every request, so it takes effect immediately.
 
 ### 3. Create the tables and start
 

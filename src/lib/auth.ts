@@ -1,9 +1,9 @@
 /**
  * Auth.js (NextAuth v5) configuration.
  *
- * Single-user by design: only addresses in ALLOWED_EMAILS may sign in, but the
- * schema is multi-user throughout (`user_id` on every table), so opening it up
- * later is a config change rather than a migration.
+ * Invite-only. Owners are named in ALLOWED_EMAILS; anyone else must be on the
+ * invite list owners manage in Settings → Access (`allowed_emails`). Every
+ * table carries `user_id`, so each person gets their own separate data.
  *
  * Route protection lives in `src/app/(app)/layout.tsx`, not in `proxy.ts`.
  * The Next.js docs are explicit that proxy (formerly middleware) is for
@@ -22,13 +22,8 @@ import {
   users,
   verificationTokens,
 } from "@/db/schema";
-
-function allowedEmails(): string[] {
-  return (process.env.ALLOWED_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
+import { hasAccess } from "@/features/access/server/check";
+import { ownerEmails } from "@/lib/access";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -65,19 +60,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   callbacks: {
-    signIn({ user }) {
-      const allowed = allowedEmails();
-
-      if (allowed.length === 0) {
-        // Fail closed. An unset allowlist must not mean "the internet may log in".
+    async signIn({ user }) {
+      if (ownerEmails().length === 0) {
+        // Fail closed for owners. An unset ALLOWED_EMAILS must not mean "the
+        // internet may log in"; invited addresses can still get in.
         console.error(
-          "[auth] ALLOWED_EMAILS is empty, so every sign-in is rejected. " +
-            "Set it in .env.local to your Google address.",
+          "[auth] ALLOWED_EMAILS is empty, so nobody is an owner. " +
+            "Set it to your Google address in .env.local and in Vercel.",
         );
-        return false;
       }
-
-      return Boolean(user.email && allowed.includes(user.email.toLowerCase()));
+      // Owners from the environment, everyone else from the invite list.
+      return hasAccess(user.email);
     },
 
     session({ session, user }) {

@@ -135,7 +135,9 @@ export async function deleteTrack(input: unknown): Promise<ActionResult> {
   const [{ sessionCount }] = await db
     .select({ sessionCount: sql<number>`count(*)::int` })
     .from(focusSessions)
-    .where(eq(focusSessions.trackId, parsed.data.id));
+    // Scoped to the caller: unscoped, this count would tell anyone whether
+    // another user's track exists and how much it has been used.
+    .where(and(eq(focusSessions.trackId, parsed.data.id), eq(focusSessions.userId, user.id)));
 
   if (sessionCount > 0) {
     return fail(

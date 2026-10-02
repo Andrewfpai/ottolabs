@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
-    "That Google account is not on the allowlist for this dashboard.",
+    "That Google account has not been invited. Ask the owner to add it under Settings → Access.",
   Configuration:
     "Auth is not configured. Check AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET and AUTH_SECRET in .env.local.",
   Verification: "That sign-in link has expired. Try again.",
@@ -61,7 +61,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
         </form>
 
         <p className="text-muted-foreground mt-6 text-center text-xs">
-          This dashboard is limited to a single allowlisted account.
+          Access is by invitation.
         </p>
       </div>
     </main>
