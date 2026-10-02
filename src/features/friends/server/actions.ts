@@ -10,6 +10,7 @@ import { hasAccess } from "@/features/access/server/check";
 import { parseFriendHandle, usernameSchema } from "@/features/friends/lib/username";
 import { type ActionResult, fail, isUniqueViolation, ok, violatedConstraint } from "@/lib/action-result";
 import { requireUser } from "@/lib/auth-guard";
+import { ANIMAL_AVATAR_IDS } from "@/lib/avatars";
 
 const idSchema = z.object({ id: z.uuid() });
 const respondSchema = z.object({ id: z.uuid(), accept: z.boolean() });
@@ -186,4 +187,16 @@ export async function setUsername(input: unknown): Promise<ActionResult<string>>
   revalidateFriends();
   revalidatePath("/settings");
   return ok(username);
+}
+
+/** Pick a built-in animal avatar, or null to go back to your Google photo. */
+export async function setAvatar(input: unknown): Promise<ActionResult> {
+  const me = await requireUser();
+  const parsed = z.object({ avatar: z.enum(ANIMAL_AVATAR_IDS).nullable() }).safeParse(input);
+  if (!parsed.success) return fail("Pick one of the avatars shown.");
+
+  await db.update(users).set({ avatar: parsed.data.avatar }).where(eq(users.id, me.id));
+  // Avatars show in the sidebar on every page, not just on Friends.
+  revalidatePath("/", "layout");
+  return ok(undefined);
 }

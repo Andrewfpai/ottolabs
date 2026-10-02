@@ -23,6 +23,7 @@ import {
 } from "@/features/analytics/lib/compute";
 import type { SplittableSession } from "@/features/analytics/lib/split";
 import { displayName, redactTrackTitles } from "@/features/friends/lib/sharing";
+import { userPicture } from "@/features/friends/server/picture";
 import { isHeartbeatFresh } from "@/features/sessions/lib/staleness";
 import { requireUser } from "@/lib/auth-guard";
 import { addDays, zonedInstant } from "@/lib/time/calendar-day";
@@ -66,7 +67,7 @@ const personColumns = {
   id: users.id,
   name: users.name,
   email: users.email,
-  image: users.image,
+  image: userPicture,
   username: users.username,
 };
 
@@ -269,7 +270,7 @@ export async function getFriendsOverview(): Promise<FriendsOverview> {
           name: viewer.name,
           email: viewer.email,
           image: viewer.image,
-          username: await getMyUsername(),
+          username: (await getMyProfile()).username,
         }),
         true,
       ),
@@ -354,13 +355,21 @@ export async function getMySharing(): Promise<{ shareTrackNames: boolean; shareL
   return { shareTrackNames: s.shareTrackNames, shareLiveStatus: s.shareLiveStatus };
 }
 
-/** Your username, or null if you have not picked one. */
-export async function getMyUsername(): Promise<string | null> {
+export type MyProfile = {
+  username: string | null;
+  /** The chosen animal id, or null for the Google photo. */
+  avatar: string | null;
+  /** The Google photo itself, for the picker's "photo" option. */
+  photo: string | null;
+};
+
+/** Your username and avatar choice, for Settings. */
+export async function getMyProfile(): Promise<MyProfile> {
   const viewer = await requireUser();
   const [row] = await db
-    .select({ username: users.username })
+    .select({ username: users.username, avatar: users.avatar, photo: users.image })
     .from(users)
     .where(eq(users.id, viewer.id))
     .limit(1);
-  return row?.username ?? null;
+  return row ?? { username: null, avatar: null, photo: null };
 }

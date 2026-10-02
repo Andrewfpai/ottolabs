@@ -3,6 +3,7 @@
 import { LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 
+import { AnimalAvatar } from "@/components/animal-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AuthedUser } from "@/lib/auth-guard";
+import { animalFromPicture } from "@/lib/avatars";
 
 function initials(user: AuthedUser): string {
   const source = user.name?.trim() || user.email;
@@ -27,6 +29,7 @@ export function UserMenu({
   user: AuthedUser;
   signOutAction: () => Promise<void>;
 }) {
+  const animal = animalFromPicture(user.image);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -34,12 +37,18 @@ export function UserMenu({
           variant="ghost"
           className="hover:bg-sidebar-accent h-auto w-full cursor-pointer justify-start gap-3 px-2 py-2"
         >
-          <Avatar className="size-8">
-            {user.image ? <AvatarImage src={user.image} alt="" /> : null}
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-              {initials(user)}
-            </AvatarFallback>
-          </Avatar>
+          {animal ? (
+            <span className="inline-flex size-8 shrink-0 overflow-hidden rounded-full">
+              <AnimalAvatar id={animal} />
+            </span>
+          ) : (
+            <Avatar className="size-8">
+              {user.image ? <AvatarImage src={user.image} alt="" /> : null}
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                {initials(user)}
+              </AvatarFallback>
+            </Avatar>
+          )}
           <span className="min-w-0 flex-1 text-left">
             <span className="block truncate text-sm font-medium">
               {user.name ?? "Signed in"}

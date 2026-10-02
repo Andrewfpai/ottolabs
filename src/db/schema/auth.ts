@@ -38,6 +38,11 @@ export const users = pgTable(
      * constraint is case-insensitive. Rules in `features/friends/lib/username.ts`.
      */
     username: text("username").unique(),
+    /**
+     * Ours too: a built-in animal avatar id (`lib/avatars.ts`), shown in
+     * place of `image`. Null means use the Google photo.
+     */
+    avatar: text("avatar"),
   },
   (t) => [check("users_username_format", sql`${t.username} ~ '^[a-z0-9_]{3,20}$'`)],
 );

@@ -18,6 +18,7 @@ import {
   users,
 } from "@/db/schema";
 import { displayName, redactTrackTitles } from "@/features/friends/lib/sharing";
+import { userPicture } from "@/features/friends/server/picture";
 import { MAX_ROOM_MEMBERS, type MemberState, memberState, roomTotals } from "@/features/rooms/lib/room";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
@@ -134,7 +135,7 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
       id: users.id,
       name: users.name,
       email: users.email,
-      image: users.image,
+      image: userPicture,
       shareTrackNames: userSettings.shareTrackNames,
     })
     .from(roomMembers)
@@ -261,7 +262,7 @@ export async function getRoomPage(roomId: string): Promise<RoomPage | null> {
 
   if (membership.isOwner) {
     const invitedRows = await db
-      .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+      .select({ id: users.id, name: users.name, email: users.email, image: userPicture })
       .from(roomMembers)
       .innerJoin(users, eq(users.id, roomMembers.userId))
       .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.status, "invited")));
@@ -269,7 +270,7 @@ export async function getRoomPage(roomId: string): Promise<RoomPage | null> {
 
     const inRoom = new Set([...live.members.map((m) => m.id), ...invited.map((u) => u.id)]);
     const friendRows = await db
-      .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+      .select({ id: users.id, name: users.name, email: users.email, image: userPicture })
       .from(friendships)
       .innerJoin(
         users,

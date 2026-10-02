@@ -7,12 +7,13 @@ import { DEFAULT_POMODORO } from "@/db/schema";
 import { AccessManager } from "@/features/access/components/access-manager";
 import { getAccessList } from "@/features/access/server/queries";
 import { SharingToggles } from "@/features/friends/components/sharing-toggles";
+import { AvatarPicker } from "@/features/friends/components/avatar-picker";
 import { UsernameForm } from "@/features/friends/components/username-form";
 import { suggestUsername } from "@/features/friends/lib/username";
 import { ReminderSettings } from "@/features/reminders/components/reminder-settings";
 import { getReminderSettings } from "@/features/reminders/server/queries";
 import { PomodoroAlertSettings } from "@/features/sessions/components/pomodoro-alert-settings";
-import { getMySharing, getMyUsername } from "@/features/friends/server/queries";
+import { getMyProfile, getMySharing } from "@/features/friends/server/queries";
 import { DeleteAccount } from "@/features/settings/components/delete-account";
 import { SettingsForm } from "@/features/settings/components/settings-form";
 import { isOwnerEmail } from "@/lib/access";
@@ -51,13 +52,13 @@ function supportedTimeZones(current: string): string[] {
 }
 
 export default async function SettingsPage() {
-  const [user, settings, access, sharing, reminders, username] = await Promise.all([
+  const [user, settings, access, sharing, reminders, profile] = await Promise.all([
     requireUser(),
     requireSettings(),
     getAccessList(),
     getMySharing(),
     getReminderSettings(),
-    getMyUsername(),
+    getMyProfile(),
   ]);
   const pomodoro = settings.defaultPomodoro ?? DEFAULT_POMODORO;
 
@@ -111,12 +112,20 @@ export default async function SettingsPage() {
         className="bg-card mt-6 scroll-mt-20 rounded-xl border p-4 sm:p-6"
       >
         <h2 id="username-heading" className="text-sm font-medium">
-          Username
+          Profile
         </h2>
         <p className="text-muted-foreground mt-1 mb-4 text-xs">
-          How friends find you on the Friends page, without needing your email.
+          What friends and study rooms see. Your username lets them add you without your email.
         </p>
-        <UsernameForm current={username} suggestion={suggestUsername(user.email)} />
+        <p className="mb-3 text-sm font-medium">Avatar</p>
+        <AvatarPicker
+          current={profile.avatar}
+          photo={profile.photo}
+          name={user.name ?? user.email}
+        />
+        <div className="mt-6">
+          <UsernameForm current={profile.username} suggestion={suggestUsername(user.email)} />
+        </div>
       </section>
 
       <section

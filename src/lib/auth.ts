@@ -22,6 +22,7 @@ import {
   users,
   verificationTokens,
 } from "@/db/schema";
+import { pictureFor } from "@/lib/avatars";
 import { hasAccess } from "@/features/access/server/check";
 import { ownerEmails } from "@/lib/access";
 
@@ -74,7 +75,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     session({ session, user }) {
-      if (session.user) session.user.id = user.id;
+      if (session.user) {
+        session.user.id = user.id;
+        // The adapter loads the whole users row, our columns included.
+        session.user.image = pictureFor((user as { avatar?: string | null }).avatar, user.image);
+      }
       return session;
     },
   },
