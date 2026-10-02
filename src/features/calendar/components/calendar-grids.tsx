@@ -191,7 +191,10 @@ export function MonthGrid({ data, onEdit, onCreate }: { data: CalendarData } & G
                 aria-label={`Open the week of ${longDay(key)}`}
               />
 
-              {focusMs ? <FocusLabel ms={focusMs} className="mt-auto max-sm:text-[10px]" /> : null}
+              {focusMs ? (
+                // No icon on a phone: a 50px cell cannot fit it and "1h 30m".
+                <FocusLabel ms={focusMs} className="mt-auto max-sm:text-[10px] max-sm:[&>svg]:hidden" />
+              ) : null}
             </li>
           );
         })}

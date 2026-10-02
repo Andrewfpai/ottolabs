@@ -28,23 +28,20 @@ import type { Track } from "@/db/schema";
 import { SessionFormDialog } from "@/features/sessions/components/session-form-dialog";
 import { deleteSession } from "@/features/sessions/server/actions";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
+import { dayKey, formatDayKey, timeOfDay } from "@/lib/time/calendar-day";
 import { elapsedMs, formatCompact } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
 
+/**
+ * Rendered on the server and again during hydration, so it must not depend on
+ * the runtime's locale data — Node and the browser disagree on details like
+ * "Sept" versus "Sep". See `formatDayKey`.
+ */
 function formatWhen(date: Date, timeZone: string): { day: string; time: string } {
   return {
-    day: new Intl.DateTimeFormat(undefined, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      timeZone,
-    }).format(date),
-    time: new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone,
-    }).format(date),
+    day: formatDayKey(dayKey(date, timeZone), { weekday: "short", day: "numeric", month: "short" }),
+    time: timeOfDay(date, timeZone),
   };
 }
 

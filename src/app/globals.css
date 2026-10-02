@@ -120,14 +120,22 @@
   --chart-4: oklch(0.62 0.16 237.323);
   --chart-5: oklch(0.645 0.246 16.439);
 
+  /*
+    Track palette, validated with the data-viz skill's checker against the
+    white card: lightness band, chroma floor, protan/deutan separation of
+    adjacent slots (worst ΔE 15.8, target 8) and the normal-vision floor
+    (27.3, floor 15). Order matters — it is TRACK_COLORS' order, the order
+    new tracks are offered colours in. Re-run the checker before changing a
+    value. Teal is the brand primary on purpose.
+  */
   --track-teal: oklch(0.6 0.118 184.704);
-  --track-amber: oklch(0.68 0.16 70.08);
-  --track-sky: oklch(0.62 0.16 237.323);
-  --track-violet: oklch(0.606 0.25 292.717);
-  --track-rose: oklch(0.645 0.246 16.439);
-  --track-emerald: oklch(0.62 0.16 162.48);
-  --track-lime: oklch(0.66 0.19 130.85);
-  --track-fuchsia: oklch(0.62 0.27 322.15);
+  --track-rose: oklch(0.469 0.19 23.9);
+  --track-violet: oklch(0.495 0.22 291.9);
+  --track-amber: oklch(0.72 0.15 68);
+  --track-sky: oklch(0.72 0.15 236);
+  --track-emerald: oklch(0.519 0.129 153.2);
+  --track-fuchsia: oklch(0.595 0.221 315.1);
+  --track-lime: oklch(0.595 0.16 131.9);
 
   --sidebar: oklch(0.975 0.008 185);
   --sidebar-foreground: oklch(0.25 0.03 190);
@@ -183,14 +191,15 @@
   --chart-4: oklch(0.7 0.15 237.323);
   --chart-5: oklch(0.71 0.19 16.439);
 
-  --track-teal: oklch(0.777 0.152 181.912);
-  --track-amber: oklch(0.8 0.16 70.08);
-  --track-sky: oklch(0.72 0.15 237.323);
-  --track-violet: oklch(0.72 0.19 292.717);
-  --track-rose: oklch(0.72 0.19 16.439);
-  --track-emerald: oklch(0.76 0.16 162.48);
-  --track-lime: oklch(0.82 0.19 130.85);
-  --track-fuchsia: oklch(0.74 0.22 322.15);
+  /* Same eight hues, stepped for the dark card (worst CVD ΔE 14.5, normal 28.7). */
+  --track-teal: oklch(0.645 0.12 174.7);
+  --track-rose: oklch(0.519 0.21 23.9);
+  --track-violet: oklch(0.594 0.221 295.8);
+  --track-amber: oklch(0.645 0.14 68.4);
+  --track-sky: oklch(0.645 0.171 248.2);
+  --track-emerald: oklch(0.52 0.16 145.1);
+  --track-fuchsia: oklch(0.596 0.221 339.1);
+  --track-lime: oklch(0.646 0.16 124);
 
   --sidebar: oklch(0.185 0.015 205);
   --sidebar-foreground: oklch(0.96 0.008 190);

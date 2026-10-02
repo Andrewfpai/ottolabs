@@ -54,6 +54,17 @@ function ClockSync() {
   return null;
 }
 
+/**
+ * next-themes renders an inline script that applies the theme before first
+ * paint. It only does anything in the server-rendered HTML. If React ever
+ * creates it in the browser — when it rebuilds the tree after an error, say —
+ * the script is inert anyway, and React warns about it. Typing it as data in
+ * the browser says exactly that and silences the warning; the element already
+ * carries suppressHydrationWarning, so the differing attribute is expected.
+ */
+const themeScriptProps =
+  typeof window === "undefined" ? undefined : { type: "application/json" };
+
 export function Providers({ children }: { children: React.ReactNode }) {
   // Held in state so React does not build a fresh client on every render.
   const [queryClient] = useState(makeQueryClient);
@@ -64,6 +75,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       defaultTheme="dark"
       enableSystem
       disableTransitionOnChange
+      scriptProps={themeScriptProps}
     >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={200}>

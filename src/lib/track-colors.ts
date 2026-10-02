@@ -8,15 +8,21 @@
  * Tailwind cannot see dynamically built class names, so the classes are spelled
  * out here in full rather than assembled as `bg-track-${name}`.
  */
+/**
+ * The order is part of the palette, not a list: it is the order new tracks are
+ * offered colours in, and it was chosen (with the values in globals.css) so
+ * that neighbours stay distinct for colour-blind readers. Change both together
+ * and re-run the palette checker.
+ */
 export const TRACK_COLORS = [
   "teal",
+  "rose",
+  "violet",
   "amber",
   "sky",
-  "violet",
-  "rose",
   "emerald",
-  "lime",
   "fuchsia",
+  "lime",
 ] as const;
 
 export type TrackColor = (typeof TRACK_COLORS)[number];
