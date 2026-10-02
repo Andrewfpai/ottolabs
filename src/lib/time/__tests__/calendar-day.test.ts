@@ -4,6 +4,7 @@ import {
   addDays,
   dayKey,
   daysBetween,
+  focusDayKey,
   formatDayKey,
   isDayKey,
   timeOfDay,
@@ -25,6 +26,30 @@ describe("dayKey", () => {
     // 17:00 UTC is exactly 00:00 in Jakarta (UTC+7).
     expect(dayKey(new Date("2026-10-02T17:00:00.000Z"), "Asia/Jakarta")).toBe("2026-10-03");
     expect(dayKey(new Date("2026-10-02T16:59:59.999Z"), "Asia/Jakarta")).toBe("2026-10-02");
+  });
+});
+
+describe("focusDayKey", () => {
+  const at = (key: string, time: string) => zonedInstant(key, time, "Asia/Jakarta");
+
+  it("counts work before the day-start hour toward the night before", () => {
+    expect(focusDayKey(at("2026-10-03", "01:00"), "Asia/Jakarta", 4)).toBe("2026-10-02");
+    expect(focusDayKey(at("2026-10-03", "03:59"), "Asia/Jakarta", 4)).toBe("2026-10-02");
+    expect(focusDayKey(at("2026-10-03", "04:00"), "Asia/Jakarta", 4)).toBe("2026-10-03");
+  });
+
+  it("is a plain calendar day when the day starts at midnight", () => {
+    expect(focusDayKey(at("2026-10-03", "00:30"), "Asia/Jakarta", 0)).toBe("2026-10-03");
+  });
+
+  it("rolls back across a month end", () => {
+    expect(focusDayKey(at("2026-11-01", "02:00"), "Asia/Jakarta", 4)).toBe("2026-10-31");
+  });
+
+  it("holds the boundary on the night the clocks change", () => {
+    // New York falls back at 02:00 on 2026-11-01; 03:30 is still before 04:00.
+    const instant = zonedInstant("2026-11-01", "03:30", "America/New_York");
+    expect(focusDayKey(instant, "America/New_York", 4)).toBe("2026-10-31");
   });
 });
 
@@ -112,5 +137,19 @@ describe("formatDayKey", () => {
     expect(formatDayKey("2026-10-02", { weekday: "short", day: "numeric", month: "short" })).toBe(
       "Fri 2 Oct",
     );
+  });
+
+  it("uses fixed abbreviations, never the runtime's CLDR data", () => {
+    // Node abbreviates September as "Sept"; browsers say "Sep". Both render
+    // the same component, so the output has to be identical.
+    expect(formatDayKey("2026-09-28", { day: "numeric", month: "short" })).toBe("28 Sep");
+  });
+
+  it("writes long forms", () => {
+    expect(
+      formatDayKey("2026-10-05", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    ).toBe("Monday, 5 October 2026");
+    expect(formatDayKey("2026-10-05", { month: "long", year: "numeric" })).toBe("October 2026");
+    expect(formatDayKey("2026-10-05", { weekday: "long" })).toBe("Monday");
   });
 });

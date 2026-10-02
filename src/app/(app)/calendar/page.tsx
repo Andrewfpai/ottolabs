@@ -1,23 +1,36 @@
-import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
 
-import { EmptyState } from "@/components/layout/empty-state";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
+import { CalendarView } from "@/features/calendar/components/calendar-view";
+import { parseView } from "@/features/calendar/lib/range";
+import { getCalendarData } from "@/features/calendar/server/queries";
+import { getTrackOptions } from "@/features/tracks/server/queries";
 
 export const metadata: Metadata = { title: "Calendar" };
 
-export default function CalendarPage() {
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
+  const params = await searchParams;
+
+  const [data, tracks] = await Promise.all([
+    getCalendarData({
+      view: parseView(first(params.view)),
+      anchor: first(params.d),
+      showFocus: first(params.focus) === "1",
+    }),
+    getTrackOptions(),
+  ]);
+
   return (
     <PageContainer>
       <PageHeader
         title="Calendar"
-        description="Deadlines laid out by month, week, or as an agenda."
+        description="Deadlines by month, week or as an agenda. Click a day to add a task due then."
       />
-      <EmptyState
-        icon={CalendarDays}
-        title="Calendar arrives in Phase 3"
-        description="Task deadlines laid out by month, week or agenda, with an option to overlay your focus sessions."
-      />
+      <CalendarView data={data} tracks={tracks} />
     </PageContainer>
   );
 }

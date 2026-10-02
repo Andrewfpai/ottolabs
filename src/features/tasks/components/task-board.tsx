@@ -7,16 +7,6 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,10 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DeleteTaskDialog } from "@/features/tasks/components/delete-task-dialog";
 import { TaskFormDialog, type TaskFormDefaults } from "@/features/tasks/components/task-form-dialog";
 import { TaskRow } from "@/features/tasks/components/task-row";
 import type { OpenBucket } from "@/features/tasks/lib/due";
-import { createTask, deleteTask } from "@/features/tasks/server/actions";
+import { createTask } from "@/features/tasks/server/actions";
 import type { TaskBoard as Board, TaskWithTrack } from "@/features/tasks/server/queries";
 import type { TrackOption } from "@/features/tracks/server/queries";
 import { trackColorClasses } from "@/lib/track-colors";
@@ -75,7 +66,6 @@ export function TaskBoard({
   const [filtering, startFiltering] = useTransition();
   const [form, setForm] = useState<FormState>({ open: false, generation: 0 });
   const [deleting, setDeleting] = useState<TaskWithTrack | null>(null);
-  const [deletePending, startDelete] = useTransition();
   const [showClosed, setShowClosed] = useState(false);
 
   // A filtered track is the natural home for anything added while viewing it.
@@ -99,17 +89,6 @@ export function TaskBoard({
 
   function openEdit(task: TaskWithTrack) {
     setForm((f) => ({ open: true, generation: f.generation + 1, task }));
-  }
-
-  function confirmDelete() {
-    const task = deleting;
-    if (!task) return;
-    startDelete(async () => {
-      const result = await deleteTask({ id: task.id });
-      if (result.ok) toast.success("Task deleted.");
-      else toast.error(result.error);
-      setDeleting(null);
-    });
   }
 
   const rowProps = {
@@ -246,33 +225,7 @@ export function TaskBoard({
         weekStartsOn={weekStartsOn}
       />
 
-      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
-            <AlertDialogDescription>
-              “{deleting?.title}” will be gone for good. If you just do not plan to do it, cancel
-              it instead and it stays in the record.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer" disabled={deletePending}>
-              Keep it
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90 cursor-pointer text-white"
-              onClick={(event) => {
-                // Stay open until the delete lands, so a failure is not silent.
-                event.preventDefault();
-                confirmDelete();
-              }}
-              disabled={deletePending}
-            >
-              {deletePending ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteTaskDialog task={deleting} onClose={() => setDeleting(null)} />
     </>
   );
 }

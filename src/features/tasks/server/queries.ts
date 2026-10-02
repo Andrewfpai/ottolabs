@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { type Task, tasks, tracks } from "@/db/schema";
@@ -81,4 +81,27 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
     todayKey,
     timeZone,
   };
+}
+
+/**
+ * Tasks with a deadline in [from, to), for the calendar. Cancelled tasks are
+ * left off — they are not going to happen, so they do not belong on a plan.
+ */
+export async function getTasksDueBetween(from: Date, to: Date): Promise<TaskWithTrack[]> {
+  const user = await requireUser();
+
+  const rows = await db
+    .select({ task: tasks, track: trackShape })
+    .from(tasks)
+    .leftJoin(tracks, eq(tracks.id, tasks.trackId))
+    .where(
+      and(
+        eq(tasks.userId, user.id),
+        ne(tasks.status, "cancelled"),
+        gte(tasks.dueAt, from),
+        lt(tasks.dueAt, to),
+      ),
+    );
+
+  return rows.map((row) => ({ ...row.task, track: row.track }));
 }

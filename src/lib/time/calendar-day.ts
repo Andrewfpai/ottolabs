@@ -55,6 +55,20 @@ export function dayKey(date: Date | number, timeZone: string): DayKey {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/**
+ * The day a moment of *focus* belongs to: like `dayKey`, except that anything
+ * before `dayStartHour` counts toward the day before. With the default of 4,
+ * a session started at 01:00 on Saturday is Friday night's work.
+ *
+ * Read off the local wall clock rather than by subtracting hours from the
+ * instant, so the night the clocks change does not shift the boundary.
+ */
+export function focusDayKey(date: Date | number, timeZone: string, dayStartHour: number): DayKey {
+  const p = zonedParts(date, timeZone);
+  const key = `${p.year}-${p.month}-${p.day}`;
+  return Number(p.hour) < dayStartHour ? addDays(key, -1) : key;
+}
+
 /** Wall-clock "HH:mm" of `date` in `timeZone`. */
 export function timeOfDay(date: Date | number, timeZone: string): string {
   const p = zonedParts(date, timeZone);
@@ -123,16 +137,54 @@ export function localDateToDayKey(date: Date): DayKey {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+export type DayKeyFormat = {
+  weekday?: "short" | "long";
+  day?: "numeric";
+  month?: "short" | "long";
+  year?: "numeric";
+};
+
 /**
- * Format a day key without dragging a time zone back in: the key is rendered
- * as a UTC date, which is exactly the date it names.
+ * "Fri 2 Oct", "Monday, 5 October 2026", "October 2026".
+ *
+ * Hand-rolled rather than Intl on purpose. These strings render on the server
+ * and again during hydration, and Node and the browser ship different CLDR
+ * versions — Node currently abbreviates September as "Sept", Chrome as "Sep".
+ * Any such difference is a hydration mismatch. A fixed table cannot drift.
  */
-export function formatDayKey(
-  key: DayKey,
-  options: Intl.DateTimeFormatOptions,
-  locale = "en-GB",
-): string {
-  return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).format(
-    keyToUtcMs(key),
-  );
+export function formatDayKey(key: DayKey, format: DayKeyFormat): string {
+  const { year, month, day } = parseDayKey(key);
+  const parts: string[] = [];
+
+  if (format.weekday) {
+    const name = WEEKDAYS[weekdayOf(key)];
+    const hasMore = Boolean(format.day || format.month || format.year);
+    parts.push(
+      format.weekday === "short" ? name.slice(0, 3) : hasMore ? `${name},` : name,
+    );
+  }
+  if (format.day) parts.push(String(day));
+  if (format.month) {
+    const name = MONTHS[month - 1];
+    parts.push(format.month === "short" ? name.slice(0, 3) : name);
+  }
+  if (format.year) parts.push(String(year));
+
+  return parts.join(" ");
 }
