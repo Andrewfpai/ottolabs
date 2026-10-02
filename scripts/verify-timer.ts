@@ -9,6 +9,7 @@
  */
 import { and, eq, isNull, sql } from "drizzle-orm";
 
+import { refuseProductionUnlessForced } from "../src/db/guard";
 import { db } from "../src/db/index";
 import { DEFAULT_POMODORO, focusSessions, tracks } from "../src/db/schema";
 import {
@@ -39,6 +40,9 @@ function check(label: string, condition: boolean, detail = "") {
 }
 
 async function main() {
+  // It creates and deletes sessions; never against production by accident.
+  refuseProductionUnlessForced("verify:timer");
+
   const user = await db.query.users.findFirst();
   if (!user) throw new Error("No user row. Sign in once first.");
 

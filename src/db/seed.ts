@@ -19,6 +19,7 @@
 import { TZDate } from "@date-fns/tz";
 import { eq } from "drizzle-orm";
 
+import { refuseProductionUnlessForced } from "./guard";
 import { db } from "./index";
 import {
   DEFAULT_POMODORO,
@@ -127,6 +128,8 @@ const TASK_TITLES = [
 // ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  refuseProductionUnlessForced("db:seed");
+
   const allowed = (process.env.ALLOWED_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())

@@ -14,14 +14,15 @@
  */
 import { eq, sql } from "drizzle-orm";
 
+import { refuseProductionUnlessForced } from "./guard";
 import { db } from "./index";
 import { focusSessions, tasks, tracks, users } from "./schema";
 
 const CONFIRMED = process.argv.includes("--yes");
 
 async function main() {
-  const endpoint = new URL(process.env.DATABASE_URL!).hostname.split(".")[0];
-  console.log(`\nEndpoint: ${endpoint}`);
+  // Prints the endpoint, and stops here if it is production without --production.
+  refuseProductionUnlessForced("db:clear");
 
   const allowed = (process.env.ALLOWED_EMAILS ?? "")
     .split(",")

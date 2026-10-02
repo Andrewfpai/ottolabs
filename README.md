@@ -52,6 +52,13 @@ the app. Each invited person gets their own separate data.
 Removing an invite signs that person out on every device. Access is re-checked
 on every request, so it takes effect immediately.
 
+### Keep production out of reach
+
+Set `PRODUCTION_DATABASE_ENDPOINT` in `.env.local` to the production branch's
+endpoint. `db:seed`, `db:clear` and `verify:timer` then refuse to touch it
+unless you add `--production`, and `db:push` labels it `<-- PRODUCTION` before
+changing anything. Point `DATABASE_URL` at a `dev` branch for day-to-day work.
+
 ### 3. Create the tables and start
 
 ```bash
