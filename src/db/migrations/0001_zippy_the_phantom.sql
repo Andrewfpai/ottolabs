@@ -1,0 +1,1 @@
+ALTER TABLE "focus_sessions" ADD COLUMN "break_started_at" timestamp with time zone;

@@ -1,36 +1,170 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OttoLabs
 
-## Getting Started
+A personal learning dashboard. Start a timer against a **track** (a topic you're
+learning), accumulate hours, and get honest analytics back about *when* and
+*how much* you actually focus.
 
-First, run the development server:
+## Status
+
+**Phase 2 complete** — focus mode, Pomodoro cycles with break accounting, and
+the idle-return prompt, on top of the Phase 1 timer engine.
+See [`docs/PLAN.md`](docs/PLAN.md) for the full plan.
+
+| Phase | Scope | State |
+|---|---|---|
+| 0 | Scaffold, auth, schema, design tokens, seeder | ✅ done |
+| 1 | Tracks CRUD + timer engine + session log | ✅ done |
+| 2 | Focus mode, Pomodoro, idle-return prompt (heartbeat + reaper landed in Phase 1) | ✅ done |
+| 3 | Tasks + calendar | next |
+| 4 | Analytics + goals | |
+| 5 | Polish, PWA, deploy | |
+| 1.1 | Google Calendar sync | deferred |
+
+## Setup
+
+You need two external things before the app will run: a Neon database and a
+Google OAuth client. Both are free.
+
+### 1. Database (Neon)
+
+1. Create a project at <https://console.neon.tech> (free tier, no card).
+2. Create a **`dev`** branch off `main` — dev work never touches real data.
+3. Copy the **pooled** connection string for `dev`.
+4. Paste it into `.env.local` as `DATABASE_URL`.
+
+### 2. Google OAuth
+
+1. Open <https://console.cloud.google.com/apis/credentials>.
+2. Create an **OAuth client ID**, type **Web application**.
+3. Add the authorized redirect URI:
+   `http://localhost:3000/api/auth/callback/google`
+4. Put the client ID and secret into `.env.local` as `AUTH_GOOGLE_ID` and
+   `AUTH_GOOGLE_SECRET`.
+
+`AUTH_SECRET`, `CRON_SECRET` and `ALLOWED_EMAILS` are already filled in.
+Only addresses in `ALLOWED_EMAILS` can sign in — everyone else is rejected, and
+an empty allowlist rejects everyone.
+
+### 3. Create the tables and start
+
+```bash
+npm run db:push
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign in once at <http://localhost:3000>, then load 90 days of realistic
+synthetic data:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:seed
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Troubleshooting
 
-## Learn More
+**`[auth][error] TypeError: fetch failed` on sign-in, or `error=Configuration`**
 
-To learn more about Next.js, take a look at the following resources:
+Node's built-in `fetch` ignores `HTTP_PROXY` / `HTTPS_PROXY`. If you run a local
+proxy (Clash, V2Ray, etc. — typically `127.0.0.1:7890`) and direct access to
+`accounts.google.com` is blocked, Auth.js times out fetching Google's OIDC
+discovery document while `curl` to the same URL works fine.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The `dev`, `build`, `start` and `db:seed` scripts set
+`NODE_OPTIONS=--use-env-proxy`, which makes Node honour the proxy variables.
+This requires **Node 24+** and is a no-op on machines with no proxy configured.
+If you invoke `next` directly rather than through npm, set it yourself.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run test` | Unit tests (Vitest) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint, incl. React Compiler rules |
+| `npm run db:generate` | Generate a migration from schema changes |
+| `npm run db:push` | Apply the schema straight to the database |
+| `npm run db:studio` | Browse and edit data |
+| `npm run db:seed` | Seed ~90 days of synthetic sessions and tasks |
+| `npm run db:seed -- --reset` | Wipe this user's data first, then seed |
+| `npm run db:clear -- --yes` | Delete tracks/sessions/tasks, keep the account |
+| `npm run verify:timer` | End-to-end check of the timer state machine, Pomodoro breaks, idle trim and reaper (needs the dev server up) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Architecture notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Time is the whole product, so the time handling is deliberate.**
+
+- **Timestamps, never counters.** A focus session stores when it started, not a
+  running total. Elapsed time is derived as
+  `(endedAt ?? now) - startedAt - pausedMs - openPause`. This is refresh-safe
+  and immune to browsers throttling timers in background tabs, because the
+  answer never depends on how often it was sampled.
+  All of it lives in one place: `src/lib/time/elapsed.ts`. Do not write a
+  second implementation.
+- **Clock skew is corrected.** `src/lib/time/clock.ts` measures the offset
+  between the browser and the server on load, so a laptop with a wrong clock
+  doesn't produce a nonsense timer. Use `clock.now()`, not `Date.now()`, on the
+  client.
+- **One live session, enforced by the database.** A partial unique index
+  (`focus_sessions_one_live_per_user`) makes a second concurrent start
+  impossible rather than merely unlikely.
+- **`breakMs` is a subset of `pausedMs`**, not additive. A Pomodoro break is
+  recorded as a pause so it's excluded from focus time, and separately tallied
+  so it can be reported. `break_started_at` marks which open pause is a break,
+  so finishing or being reaped mid-break banks it in both places. Aggregates
+  therefore only ever subtract `paused_ms` — subtracting both would deduct
+  every break twice.
+- **The Pomodoro phase is derived, not counted down.** Time left in a work
+  interval is `(completedCycles + 1) × workMinutes − focusSoFar`; time left in
+  a break runs from `break_started_at`. Nothing to persist, nothing to keep in
+  sync, and a refresh mid-cycle lands exactly where it left off. See
+  `src/features/sessions/lib/pomodoro.ts`.
+- **Cycle transitions only fire while the tab is in front.** Auto-starting a
+  break in a hidden tab would delete focus time you were genuinely earning
+  elsewhere; auto-resuming work in one would credit you for time at lunch. A
+  hidden tab simply lets the phase run over, which is reported honestly.
+- **The idle-return prompt** asks what to do when you come back to a timer that
+  ran while the tab was buried for more than ten minutes: keep it, trim the
+  away time out of it, or discard the session. The heartbeat and reaper handle
+  never coming back; this handles coming back late.
+
+**Other conventions**
+
+- `features/*/server/` is the only code that touches `db`. Everything else
+  imports from a feature.
+- Route protection lives in `src/app/(app)/layout.tsx`. Next.js documents proxy
+  (formerly middleware) as unsuitable for session management. Server Actions are
+  reachable by direct POST, so each one calls `requireUser()` itself.
+- Auth.js owns a table named `sessions`. Ours is `focus_sessions`. The
+  distinction is load-bearing.
+- Tracks store a colour *name*, never a hex value. The palette lives in
+  `globals.css` and `src/lib/track-colors.ts`.
+- `/focus` is not in the sidebar: it is a mode you enter from a running timer
+  (the expand button on the timer bar), not a place you browse to. `Space`
+  pauses, `Esc` leaves. The timer morphs between the mini bar and the
+  fullscreen dial via a shared `layoutId` — both sides read it from
+  `src/features/sessions/lib/timer-layout.ts`.
+- The heartbeat, the Pomodoro engine and idle detection each run in exactly one
+  place: `TimerBar`, which the app shell mounts on every authenticated route.
+  Two copies would race to make the same cycle transition.
+
+## The stale-session reaper
+
+`vercel.json` schedules `/api/cron/reap-sessions` every 15 minutes. It closes
+any live session whose heartbeat is more than 30 minutes stale, **at the last
+heartbeat** rather than at the moment it noticed — so a closed laptop logs the
+90 minutes you actually studied instead of 13 hours of fiction.
+
+Vercel's Hobby plan has historically limited cron jobs to one run per day;
+check what your plan allows and widen the schedule if a deploy rejects it. The
+route refuses to run without `CRON_SECRET` in the `Authorization` header, so it
+is safe to leave exposed.
+
+## Stack
+
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui
+(Radix) · Motion · Drizzle ORM · Neon Postgres · Auth.js v5 · TanStack Query ·
+Recharts · Vitest

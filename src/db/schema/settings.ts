@@ -1,0 +1,49 @@
+/**
+ * Per-user preferences. One row per user, created on first sign-in.
+ *
+ * `dayStartHour` is the night-owl boundary: with the default of 4, work done
+ * at 01:00 counts toward the previous day. Every date bucket in analytics and
+ * every streak calculation respects it — otherwise a 1am study session looks
+ * like it broke your streak *and* started a new one.
+ */
+import { relations } from "drizzle-orm";
+import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+
+import { users } from "./auth";
+import type { PomodoroConfig } from "./sessions";
+
+export const DEFAULT_POMODORO: PomodoroConfig = {
+  workMinutes: 25,
+  breakMinutes: 5,
+  longBreakMinutes: 15,
+  cyclesBeforeLongBreak: 4,
+};
+
+export const userSettings = pgTable("user_settings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  /** IANA zone, seeded from the browser on first sign-in. */
+  timezone: text("timezone").notNull().default("UTC"),
+
+  /** 0-23. Hour at which a new "day" begins for bucketing and streaks. */
+  dayStartHour: integer("day_start_hour").notNull().default(4),
+
+  dailyGoalMinutes: integer("daily_goal_minutes").notNull().default(120),
+  /** 0 = Sunday, 1 = Monday. */
+  weekStartsOn: integer("week_starts_on").notNull().default(1),
+
+  defaultPomodoro: jsonb("default_pomodoro")
+    .$type<PomodoroConfig>()
+    .notNull()
+    .default(DEFAULT_POMODORO),
+
+  theme: text("theme").notNull().default("system"),
+});
+
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(users, { fields: [userSettings.userId], references: [users.id] }),
+}));
+
+export type UserSettings = typeof userSettings.$inferSelect;
