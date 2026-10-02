@@ -5,7 +5,7 @@ import { focusSessions, type Task, tasks, tracks } from "@/db/schema";
 import { groupOpenTasks, type OpenBucket } from "@/features/tasks/lib/due";
 import { FOCUS_MS } from "@/features/tracks/server/queries";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
-import { type DayKey, dayKey } from "@/lib/time/calendar-day";
+import { addDays, type DayKey, dayKey, zonedInstant } from "@/lib/time/calendar-day";
 
 export type TaskWithTrack = Task & {
   track: { id: string; title: string; color: string; icon: string } | null;
@@ -28,6 +28,8 @@ export type TaskBoard = {
   open: Record<OpenBucket, TaskWithTrack[]>;
   /** Done and cancelled, most recently closed first. */
   closed: TaskWithTrack[];
+  /** Finished tasks with a review due today or overdue, oldest due first. */
+  reviews: TaskWithTrack[];
   /**
    * The instant the board was grouped at. Components render relative labels
    * ("Tomorrow", "2 days overdue") against this rather than their own clock,
@@ -49,7 +51,12 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
   const settings = await requireSettings();
   const byTrack = trackCondition(options?.trackId);
 
-  const [openRows, closedRows] = await Promise.all([
+  const now = Date.now();
+  const timeZone = settings.timezone;
+  const todayKey = dayKey(now, timeZone);
+  const tomorrowStart = zonedInstant(addDays(todayKey, 1), null, timeZone);
+
+  const [openRows, closedRows, reviewRows] = await Promise.all([
     db
       .select({ task: tasks, track: trackShape })
       .from(tasks)
@@ -64,6 +71,20 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
       .where(and(eq(tasks.userId, user.id), inArray(tasks.status, ["done", "cancelled"]), byTrack))
       .orderBy(desc(sql`coalesce(${tasks.completedAt}, ${tasks.updatedAt})`))
       .limit(RECENT_CLOSED_LIMIT),
+    db
+      .select({ task: tasks, track: trackShape })
+      .from(tasks)
+      .leftJoin(tracks, eq(tracks.id, tasks.trackId))
+      .where(
+        and(
+          eq(tasks.userId, user.id),
+          eq(tasks.status, "done"),
+          sql`${tasks.reviewStage} > 0`,
+          lt(tasks.reviewDueAt, tomorrowStart),
+          byTrack,
+        ),
+      )
+      .orderBy(tasks.reviewDueAt),
   ]);
 
   const toTask = (row: (typeof openRows)[number]): TaskWithTrack => ({
@@ -71,13 +92,10 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
     track: row.track,
   });
 
-  const now = Date.now();
-  const timeZone = settings.timezone;
-  const todayKey = dayKey(now, timeZone);
-
   return {
     open: groupOpenTasks(openRows.map(toTask), todayKey, timeZone),
     closed: closedRows.map(toTask),
+    reviews: reviewRows.map(toTask),
     now,
     todayKey,
     timeZone,

@@ -34,6 +34,16 @@ const OPTIONS: { key: keyof Prefs; label: string; description: string }[] = [
     label: "Room activity",
     description: "When someone in one of your rooms starts focusing there. At most once per person per 30 minutes.",
   },
+  {
+    key: "notifyCheers",
+    label: "Cheers from friends",
+    description: "When a friend sends you a 👏 or 🔥, with how much you have focused today.",
+  },
+  {
+    key: "remindReviews",
+    label: "Reviews due",
+    description: "In the evening, the finished tasks you asked to review that day.",
+  },
 ];
 
 const SUBSCRIBE_ERRORS: Record<string, string> = {

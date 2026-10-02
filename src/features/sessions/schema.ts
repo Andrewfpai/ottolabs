@@ -31,6 +31,8 @@ export const finishSessionSchema = z.object({
   tags: tagsSchema.default([]),
   /** Also tick off the session's task. */
   completeTask: z.boolean().default(false),
+  /** With completeTask: come back to it in 3, 7 and 21 days. */
+  reviewTask: z.boolean().default(false),
 });
 
 /**

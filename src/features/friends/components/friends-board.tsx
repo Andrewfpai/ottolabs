@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CheerButtons, ReceivedCheers } from "@/features/friends/components/cheers";
 import { LiveBadge } from "@/features/friends/components/live-badge";
 import { PersonAvatar } from "@/features/friends/components/person-avatar";
 import { weeklyStandings } from "@/features/friends/lib/sharing";
@@ -18,16 +19,27 @@ import {
   respondToRequest,
   sendFriendRequest,
 } from "@/features/friends/server/actions";
-import type { FriendRequest, FriendsOverview } from "@/features/friends/server/queries";
+import type { FriendRequest, FriendsOverview, ReceivedCheer } from "@/features/friends/server/queries";
 import { formatCompact } from "@/lib/time/elapsed";
 
-export function FriendsBoard({ overview }: { overview: FriendsOverview }) {
+export function FriendsBoard({
+  overview,
+  cheers,
+  now,
+}: {
+  overview: FriendsOverview;
+  cheers: ReceivedCheer[];
+  /** The render instant, so "2h ago" agrees between server and client. */
+  now: number;
+}) {
   const standings = weeklyStandings(overview.people);
   const maxWeek = Math.max(1, ...standings.map((p) => p.weekMs));
   const hasFriends = standings.length > 1;
 
   return (
     <div className="space-y-6">
+      <ReceivedCheers cheers={cheers} now={now} />
+
       <AddFriend myUsername={overview.people.find((p) => p.isSelf)?.username ?? null} />
 
       {overview.incoming.length > 0 ? (
@@ -49,10 +61,10 @@ export function FriendsBoard({ overview }: { overview: FriendsOverview }) {
 
         <ul className="divide-y">
           {standings.map((person) => (
-            <li key={person.id}>
+            <li key={person.id} className="hover:bg-muted/40 flex items-center transition-colors">
               <Link
                 href={person.isSelf ? "/analytics" : `/friends/${person.id}`}
-                className="hover:bg-muted/40 flex items-center gap-3 px-4 py-3 transition-colors"
+                className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3"
               >
                 <PersonAvatar name={person.name} image={person.image} />
                 <div className="min-w-0 flex-1">
@@ -89,6 +101,7 @@ export function FriendsBoard({ overview }: { overview: FriendsOverview }) {
                   </div>
                 </div>
               </Link>
+              {person.isSelf ? null : <CheerButtons friendId={person.id} name={person.name} />}
             </li>
           ))}
         </ul>

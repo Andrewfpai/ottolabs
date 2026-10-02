@@ -79,7 +79,7 @@ export function roomStartMessage(input: {
 // ── Keys for the "already sent" log ─────────────────────────────────────────
 
 /** One evening reminder of each kind per local day. */
-export function eveningKey(kind: "deadlines" | "goal", today: DayKey): string {
+export function eveningKey(kind: "deadlines" | "goal" | "reviews", today: DayKey): string {
   return `${kind}:${today}`;
 }
 

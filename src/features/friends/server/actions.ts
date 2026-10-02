@@ -1,12 +1,16 @@
 "use server";
 
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { friendships, userSettings, users } from "@/db/schema";
+import { cheers, friendships, userSettings, users } from "@/db/schema";
 import { hasAccess } from "@/features/access/server/check";
+import { CHEER_KINDS, cheerWaitMs, describeWait } from "@/features/friends/lib/cheers";
+import { displayName } from "@/features/friends/lib/sharing";
+import { notifyCheer } from "@/features/reminders/server/push";
 import { parseFriendHandle, usernameSchema } from "@/features/friends/lib/username";
 import { type ActionResult, fail, isUniqueViolation, ok, violatedConstraint } from "@/lib/action-result";
 import { requireUser } from "@/lib/auth-guard";
@@ -198,5 +202,51 @@ export async function setAvatar(input: unknown): Promise<ActionResult> {
   await db.update(users).set({ avatar: parsed.data.avatar }).where(eq(users.id, me.id));
   // Avatars show in the sidebar on every page, not just on Friends.
   revalidatePath("/", "layout");
+  return ok(undefined);
+}
+
+const cheerSchema = z.object({ friendId: z.string().min(1).max(100), kind: z.enum(CHEER_KINDS) });
+
+/** Send a friend a 👏 or 🔥. Friends only, once per three hours per friend. */
+export async function sendCheer(input: unknown): Promise<ActionResult> {
+  const me = await requireUser();
+  const parsed = cheerSchema.safeParse(input);
+  if (!parsed.success) return fail("Pick a cheer to send.");
+  const { friendId, kind } = parsed.data;
+
+  const [friendship] = await db
+    .select({ id: friendships.id })
+    .from(friendships)
+    .where(and(pair(me.id, friendId), eq(friendships.status, "accepted")))
+    .limit(1);
+  if (!friendship) return fail("You can only cheer your friends.", "NOT_FOUND");
+
+  const [last] = await db
+    .select({ createdAt: cheers.createdAt })
+    .from(cheers)
+    .where(and(eq(cheers.fromUserId, me.id), eq(cheers.toUserId, friendId)))
+    .orderBy(desc(cheers.createdAt))
+    .limit(1);
+  const wait = cheerWaitMs(last?.createdAt ?? null, Date.now());
+  if (wait > 0) {
+    const [friend] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, friendId)).limit(1);
+    return fail(
+      `You cheered ${friend ? displayName(friend) : "them"} recently. You can again in ${describeWait(wait)}.`,
+      "COOLDOWN",
+    );
+  }
+
+  await db.insert(cheers).values({ fromUserId: me.id, toUserId: friendId, kind });
+  after(() => notifyCheer(me.id, friendId, kind));
+  return ok(undefined);
+}
+
+/** The Friends page was opened: the cheers waiting there have been seen. */
+export async function markCheersSeen(): Promise<ActionResult> {
+  const me = await requireUser();
+  await db
+    .update(cheers)
+    .set({ seenAt: new Date() })
+    .where(and(eq(cheers.toUserId, me.id), isNull(cheers.seenAt)));
   return ok(undefined);
 }

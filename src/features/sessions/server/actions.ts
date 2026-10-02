@@ -38,6 +38,8 @@ import {
 import { notifyRoomStart } from "@/features/reminders/server/push";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireUser } from "@/lib/auth-guard";
+import { firstReview } from "@/features/tasks/lib/reviews";
+import { dayKey } from "@/lib/time/calendar-day";
 import { elapsedMs } from "@/lib/time/elapsed";
 import { requireSettings } from "@/lib/auth-guard";
 
@@ -253,9 +255,15 @@ export async function finishSession(
   }
 
   if (parsed.data.completeTask && finished.taskId) {
+    const timeZone = parsed.data.reviewTask ? (await requireSettings()).timezone : null;
     await db
       .update(tasks)
-      .set({ status: "done", completedAt: sql`coalesce(${tasks.completedAt}, now())`, updatedAt: new Date() })
+      .set({
+        status: "done",
+        completedAt: sql`coalesce(${tasks.completedAt}, now())`,
+        ...(timeZone ? firstReview(dayKey(Date.now(), timeZone), timeZone) : {}),
+        updatedAt: new Date(),
+      })
       .where(and(eq(tasks.id, finished.taskId), eq(tasks.userId, user.id)));
     revalidatePath("/tasks");
   }

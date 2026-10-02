@@ -7,7 +7,13 @@ import { requireSettings, requireUser } from "@/lib/auth-guard";
 
 export type ReminderSettings = {
   configured: boolean;
-  prefs: { remindDeadlines: boolean; remindDailyGoal: boolean; notifyRoomActivity: boolean };
+  prefs: {
+    remindDeadlines: boolean;
+    remindDailyGoal: boolean;
+    notifyRoomActivity: boolean;
+    notifyCheers: boolean;
+    remindReviews: boolean;
+  };
   devices: { id: string; label: string; createdAt: Date }[];
 };
 
@@ -26,6 +32,8 @@ export async function getReminderSettings(): Promise<ReminderSettings> {
       remindDeadlines: settings.remindDeadlines,
       remindDailyGoal: settings.remindDailyGoal,
       notifyRoomActivity: settings.notifyRoomActivity,
+      notifyCheers: settings.notifyCheers,
+      remindReviews: settings.remindReviews,
     },
     devices: devices.map((d) => ({ ...d, label: d.label ?? "A device" })),
   };

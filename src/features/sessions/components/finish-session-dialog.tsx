@@ -54,6 +54,7 @@ export function FinishSessionDialog({
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [completeTask, setCompleteTask] = useState(false);
+  const [reviewTask, setReviewTask] = useState(false);
   const finish = useFinishSession();
   const queryClient = useQueryClient();
   const suggestions = useMyTags(open);
@@ -62,7 +63,13 @@ export function FinishSessionDialog({
 
   async function submit() {
     try {
-      const result = await finish.mutateAsync({ id: session.id, note, tags, completeTask });
+      const result = await finish.mutateAsync({
+        id: session.id,
+        note,
+        tags,
+        completeTask,
+        reviewTask: completeTask && reviewTask,
+      });
       toast.success(
         `Logged ${formatCompact(result.elapsedMs)} on ${session.task?.title ?? session.track.title}.` +
           (session.task && completeTask ? " Task done." : ""),
@@ -71,6 +78,7 @@ export function FinishSessionDialog({
       setNote("");
       setTags([]);
       setCompleteTask(false);
+      setReviewTask(false);
       onOpenChange(false);
     } catch {
       // useSessionMutation already surfaced the error as a toast.
@@ -143,6 +151,16 @@ export function FinishSessionDialog({
               className="cursor-pointer"
             />
             Mark “{session.task.title}” as done
+          </label>
+        ) : null}
+        {session.task && completeTask ? (
+          <label className="-mt-2 ml-6 flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox
+              checked={reviewTask}
+              onCheckedChange={(checked) => setReviewTask(checked === true)}
+              className="cursor-pointer"
+            />
+            Review it in 3, 7 and 21 days
           </label>
         ) : null}
 

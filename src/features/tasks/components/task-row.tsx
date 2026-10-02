@@ -9,6 +9,7 @@ import {
   MoreVertical,
   Pencil,
   Play,
+  Repeat,
   RotateCcw,
   Trash2,
   Undo2,
@@ -29,7 +30,8 @@ import {
 import { useActiveSession, useStartSession } from "@/features/sessions/hooks/use-active-session";
 import { describeDue, isOpen, type TaskStatus } from "@/features/tasks/lib/due";
 import { DUE_TONE_CLASSES, PRIORITY_META } from "@/features/tasks/lib/labels";
-import { setTaskStatus } from "@/features/tasks/server/actions";
+import { reviewLabel } from "@/features/tasks/lib/reviews";
+import { scheduleReviews, setTaskStatus, stopReviews } from "@/features/tasks/server/actions";
 import type { TaskWithTrack } from "@/features/tasks/server/queries";
 import { dayKey, formatDayKey } from "@/lib/time/calendar-day";
 import { trackColorClasses } from "@/lib/track-colors";
@@ -88,7 +90,24 @@ export function TaskRow({
             });
           },
         },
+        // The moment you finish something is the moment to plan revisiting it.
+        ...(next === "done"
+          ? {
+              cancel: {
+                label: "Review later",
+                onClick: () => reviews("schedule"),
+              },
+            }
+          : {}),
       });
+    });
+  }
+
+  function reviews(action: "schedule" | "stop") {
+    startTransition(async () => {
+      const result = action === "schedule" ? await scheduleReviews({ id: task.id }) : await stopReviews({ id: task.id });
+      if (!result.ok) toast.error(result.error);
+      else toast.success(action === "schedule" ? "You will review it in 3, 7 and 21 days." : "Reviews stopped.");
     });
   }
 
@@ -144,6 +163,13 @@ export function TaskRow({
           ) : null}
 
           {closedLabel ? <span className="text-muted-foreground">{closedLabel}</span> : null}
+
+          {status === "done" && task.reviewStage > 0 ? (
+            <span className="text-primary flex items-center gap-1">
+              <Repeat className="size-3.5" aria-hidden />
+              {reviewLabel(task.reviewStage)}
+            </span>
+          ) : null}
 
           {status === "cancelled" ? (
             <Badge variant="outline" className="text-xs">
@@ -239,6 +265,16 @@ export function TaskRow({
               Reopen
             </DropdownMenuItem>
           )}
+
+          {status === "done" ? (
+            <DropdownMenuItem
+              className="cursor-pointer gap-2"
+              onSelect={() => reviews(task.reviewStage > 0 ? "stop" : "schedule")}
+            >
+              <Repeat className="size-4" aria-hidden />
+              {task.reviewStage > 0 ? "Stop reviews" : "Review in 3, 7 and 21 days"}
+            </DropdownMenuItem>
+          ) : null}
 
           <DropdownMenuSeparator />
           <DropdownMenuItem

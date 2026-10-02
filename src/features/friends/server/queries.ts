@@ -12,7 +12,7 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { focusSessions, friendships, tracks, userSettings, users } from "@/db/schema";
+import { cheers, focusSessions, friendships, tracks, userSettings, users } from "@/db/schema";
 import {
   type AnalyticsData,
   type AnalyticsRangeKey,
@@ -372,4 +372,47 @@ export async function getMyProfile(): Promise<MyProfile> {
     .where(eq(users.id, viewer.id))
     .limit(1);
   return row ?? { username: null, avatar: null, photo: null };
+}
+
+export type ReceivedCheer = {
+  id: string;
+  kind: "clap" | "fire";
+  createdAt: Date;
+  isNew: boolean;
+  from: { id: string; name: string; image: string | null };
+};
+
+/**
+ * Cheers you received in the last two weeks, newest first, with the instant
+ * they were read at so "2h ago" renders the same on server and client.
+ */
+export async function getReceivedCheers(): Promise<{ cheers: ReceivedCheer[]; now: number }> {
+  const viewer = await requireUser();
+  const now = Date.now();
+  const rows = await db
+    .select({
+      id: cheers.id,
+      kind: cheers.kind,
+      createdAt: cheers.createdAt,
+      seenAt: cheers.seenAt,
+      fromId: users.id,
+      name: users.name,
+      email: users.email,
+      image: userPicture,
+    })
+    .from(cheers)
+    .innerJoin(users, eq(users.id, cheers.fromUserId))
+    .where(and(eq(cheers.toUserId, viewer.id), gte(cheers.createdAt, new Date(now - 14 * 86_400_000))))
+    .orderBy(desc(cheers.createdAt))
+    .limit(12);
+  return {
+    now,
+    cheers: rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      createdAt: r.createdAt,
+      isNew: r.seenAt === null,
+      from: { id: r.fromId, name: displayName({ name: r.name, email: r.email }), image: r.image },
+    })),
+  };
 }

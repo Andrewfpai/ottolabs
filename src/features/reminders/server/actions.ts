@@ -24,6 +24,8 @@ const prefsSchema = z.object({
   remindDeadlines: z.boolean(),
   remindDailyGoal: z.boolean(),
   notifyRoomActivity: z.boolean(),
+  notifyCheers: z.boolean(),
+  remindReviews: z.boolean(),
 });
 
 /**

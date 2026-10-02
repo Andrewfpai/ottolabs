@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { DeleteTaskDialog } from "@/features/tasks/components/delete-task-dialog";
 import { TaskFormDialog, type TaskFormDefaults } from "@/features/tasks/components/task-form-dialog";
+import { ReviewList } from "@/features/tasks/components/review-list";
 import { TaskRow } from "@/features/tasks/components/task-row";
 import type { OpenBucket } from "@/features/tasks/lib/due";
 import { createTask } from "@/features/tasks/server/actions";
@@ -72,7 +73,7 @@ export function TaskBoard({
   const filterTrackId = trackFilter && trackFilter !== "none" ? trackFilter : null;
 
   const openCount = Object.values(board.open).reduce((n, list) => n + list.length, 0);
-  const isEmpty = openCount === 0 && board.closed.length === 0;
+  const isEmpty = openCount === 0 && board.closed.length === 0 && board.reviews.length === 0;
 
   function setFilter(value: string) {
     const query = value === ALL_TRACKS ? "" : `?track=${encodeURIComponent(value)}`;
@@ -150,6 +151,8 @@ export function TaskBoard({
           />
         ) : (
           <>
+            <ReviewList reviews={board.reviews} />
+
             {SECTIONS.map(({ bucket, title, emptyText, className }) => {
               const list = board.open[bucket];
               if (list.length === 0 && !emptyText) return null;

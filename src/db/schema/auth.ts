@@ -43,6 +43,8 @@ export const users = pgTable(
      * place of `image`. Null means use the Google photo.
      */
     avatar: text("avatar"),
+    /** Accessories worn on the animal avatar, one per slot. Each must be unlocked. */
+    accessories: text("accessories").array().notNull().default(sql`ARRAY[]::text[]`),
   },
   (t) => [check("users_username_format", sql`${t.username} ~ '^[a-z0-9_]{3,20}$'`)],
 );

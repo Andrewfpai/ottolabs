@@ -41,3 +41,34 @@ export const friendships = pgTable(
 );
 
 export type Friendship = typeof friendships.$inferSelect;
+
+export const cheerKindEnum = pgEnum("cheer_kind", ["clap", "fire"]);
+
+/**
+ * A 👏 or 🔥 sent to a friend. Kept, not just pushed: the Friends page shows
+ * the ones you received, and they count toward milestones.
+ */
+export const cheers = pgTable(
+  "cheers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fromUserId: text("from_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    toUserId: text("to_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: cheerKindEnum("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Null until the recipient has seen it on the Friends page. */
+    seenAt: timestamp("seen_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("cheers_to_created_idx").on(t.toUserId, t.createdAt.desc()),
+    // The rate limit looks up the latest cheer between one pair.
+    index("cheers_pair_created_idx").on(t.fromUserId, t.toUserId, t.createdAt.desc()),
+    check("cheers_not_self", sql`${t.fromUserId} <> ${t.toUserId}`),
+  ],
+);
+
+export type Cheer = typeof cheers.$inferSelect;

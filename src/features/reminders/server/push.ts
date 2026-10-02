@@ -4,7 +4,7 @@
  * Not a "use server" file: these run from the cron route and from `after()`
  * in startSession, with an explicit user id, never from the browser.
  */
-import { and, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, ne, or, sql } from "drizzle-orm";
 import webpush from "web-push";
 
 import { db } from "@/db";
@@ -19,6 +19,7 @@ import {
   users,
 } from "@/db/schema";
 import { computeFocusSummary } from "@/features/analytics/lib/compute";
+import { type CheerKind, cheerMessage } from "@/features/friends/lib/cheers";
 import { displayName } from "@/features/friends/lib/sharing";
 import {
   deadlineMessage,
@@ -30,9 +31,38 @@ import {
   tasksDueTomorrow,
 } from "@/features/reminders/lib/reminders";
 import { isHeartbeatFresh } from "@/features/sessions/lib/staleness";
-import { dayKey, wallClock } from "@/lib/time/calendar-day";
+import { reviewsDueMessage } from "@/features/tasks/lib/reviews";
+import { addDays, dayKey, wallClock, zonedInstant } from "@/lib/time/calendar-day";
 
 let configured: boolean | null = null;
+
+/**
+ * Focus so far on the person's own "today", a running timer included unless
+ * it was abandoned. For pushes that mention it.
+ */
+async function todayFocusMs(
+  userId: string,
+  settings: { timeZone: string; dayStartHour: number; weekStartsOn: number },
+  now: number,
+): Promise<number> {
+  const sessions = await db
+    .select({
+      trackId: focusSessions.trackId,
+      startedAt: focusSessions.startedAt,
+      endedAt: focusSessions.endedAt,
+      pausedMs: focusSessions.pausedMs,
+      pausedAt: focusSessions.pausedAt,
+      lastHeartbeatAt: focusSessions.lastHeartbeatAt,
+    })
+    .from(focusSessions)
+    .where(and(eq(focusSessions.userId, userId), gte(focusSessions.startedAt, new Date(now - 2 * 86_400_000))));
+  const counted = sessions.filter((s) => s.endedAt !== null || isHeartbeatFresh(s.lastHeartbeatAt, now));
+  return computeFocusSummary({
+    settings: { timeZone: settings.timeZone, dayStartHour: settings.dayStartHour, weekStartsOn: settings.weekStartsOn },
+    now,
+    sessions: counted,
+  }).todayMs;
+}
 
 /** True once the VAPID keys are present; without them nothing is sent. */
 export function pushConfigured(): boolean {
@@ -114,10 +144,17 @@ export async function runEveningReminders(now: number = Date.now()): Promise<Eve
       dailyGoalMinutes: userSettings.dailyGoalMinutes,
       remindDeadlines: userSettings.remindDeadlines,
       remindDailyGoal: userSettings.remindDailyGoal,
+      remindReviews: userSettings.remindReviews,
     })
     .from(userSettings)
     .innerJoin(pushSubscriptions, eq(pushSubscriptions.userId, userSettings.userId))
-    .where(or(eq(userSettings.remindDeadlines, true), eq(userSettings.remindDailyGoal, true)));
+    .where(
+      or(
+        eq(userSettings.remindDeadlines, true),
+        eq(userSettings.remindDailyGoal, true),
+        eq(userSettings.remindReviews, true),
+      ),
+    );
 
   for (const person of people) {
     run.checked += 1;
@@ -146,25 +183,27 @@ export async function runEveningReminders(now: number = Date.now()): Promise<Eve
       }
     }
 
+    if (person.remindReviews) {
+      const due = await db
+        .select({ title: tasks.title })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.userId, person.userId),
+            eq(tasks.status, "done"),
+            sql`${tasks.reviewStage} > 0`,
+            lt(tasks.reviewDueAt, zonedInstant(addDays(today, 1), null, person.timeZone)),
+          ),
+        )
+        .orderBy(tasks.reviewDueAt);
+      const message = reviewsDueMessage(due.map((t) => t.title));
+      if (message && (await claimReminder(person.userId, eveningKey("reviews", today)))) {
+        run.sent += (await sendToUser(person.userId, message)) > 0 ? 1 : 0;
+      }
+    }
+
     if (person.remindDailyGoal) {
-      const sessions = await db
-        .select({
-          trackId: focusSessions.trackId,
-          startedAt: focusSessions.startedAt,
-          endedAt: focusSessions.endedAt,
-          pausedMs: focusSessions.pausedMs,
-          pausedAt: focusSessions.pausedAt,
-          lastHeartbeatAt: focusSessions.lastHeartbeatAt,
-        })
-        .from(focusSessions)
-        .where(and(eq(focusSessions.userId, person.userId), gte(focusSessions.startedAt, new Date(now - 2 * 86_400_000))));
-      // A running timer counts up to now, unless it was abandoned.
-      const counted = sessions.filter((s) => s.endedAt !== null || isHeartbeatFresh(s.lastHeartbeatAt, now));
-      const { todayMs } = computeFocusSummary({
-        settings: { timeZone: person.timeZone, dayStartHour: person.dayStartHour, weekStartsOn: person.weekStartsOn },
-        now,
-        sessions: counted,
-      });
+      const todayMs = await todayFocusMs(person.userId, person, now);
       const message = goalGapMessage(todayMs, person.dailyGoalMinutes);
       if (message && (await claimReminder(person.userId, eveningKey("goal", today)))) {
         run.sent += (await sendToUser(person.userId, message)) > 0 ? 1 : 0;
@@ -211,6 +250,30 @@ export async function notifyRoomStart(roomId: string, starterId: string, now: nu
       }
     }),
   );
+}
+
+/**
+ * "🔥 Sam cheered you on", to the friend's devices if they want cheers.
+ * Called via after(), so sending a cheer never waits on push services.
+ */
+export async function notifyCheer(fromId: string, toId: string, kind: CheerKind, now: number = Date.now()): Promise<void> {
+  if (!pushConfigured()) return;
+  const [recipient] = await db
+    .select({
+      notifyCheers: userSettings.notifyCheers,
+      timeZone: userSettings.timezone,
+      dayStartHour: userSettings.dayStartHour,
+      weekStartsOn: userSettings.weekStartsOn,
+    })
+    .from(userSettings)
+    .where(eq(userSettings.userId, toId))
+    .limit(1);
+  if (!recipient?.notifyCheers) return;
+  const [sender] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, fromId)).limit(1);
+  if (!sender) return;
+
+  const todayMs = await todayFocusMs(toId, recipient, now);
+  await sendToUser(toId, cheerMessage({ fromId, name: displayName(sender), kind, todayMs }));
 }
 
 /** Housekeeping: the log only needs to remember about a week. */

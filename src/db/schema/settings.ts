@@ -56,6 +56,14 @@ export const userSettings = pgTable("user_settings", {
   remindDailyGoal: boolean("remind_daily_goal").notNull().default(false),
   /** Instantly: someone in one of your rooms started focusing there. */
   notifyRoomActivity: boolean("notify_room_activity").notNull().default(false),
+  /**
+   * Instantly: a friend cheered you on. On by default, unlike the rest: you
+   * asked for these by having friends, and they only reach devices you
+   * enabled.
+   */
+  notifyCheers: boolean("notify_cheers").notNull().default(true),
+  /** Evening: tasks you asked to review that are due today. On by default for the same reason. */
+  remindReviews: boolean("remind_reviews").notNull().default(true),
 });
 
 export const userSettingsRelations = relations(userSettings, ({ one }) => ({

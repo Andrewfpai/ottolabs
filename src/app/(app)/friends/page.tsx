@@ -4,12 +4,12 @@ import Link from "next/link";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { FriendsBoard } from "@/features/friends/components/friends-board";
-import { getFriendsOverview } from "@/features/friends/server/queries";
+import { getFriendsOverview, getReceivedCheers } from "@/features/friends/server/queries";
 
 export const metadata: Metadata = { title: "Friends" };
 
 export default async function FriendsPage() {
-  const overview = await getFriendsOverview();
+  const [overview, { cheers, now }] = await Promise.all([getFriendsOverview(), getReceivedCheers()]);
 
   return (
     <PageContainer className="max-w-3xl">
@@ -22,7 +22,7 @@ export default async function FriendsPage() {
           </Button>
         }
       />
-      <FriendsBoard overview={overview} />
+      <FriendsBoard overview={overview} cheers={cheers} now={now} />
     </PageContainer>
   );
 }

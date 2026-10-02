@@ -13,7 +13,8 @@ import {
 } from "@/features/tasks/schema";
 import { type ActionResult, fail, isForeignKeyViolation, ok } from "@/lib/action-result";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
-import { zonedInstant } from "@/lib/time/calendar-day";
+import { afterReview, firstReview } from "@/features/tasks/lib/reviews";
+import { dayKey, zonedInstant } from "@/lib/time/calendar-day";
 
 const TRACK_GONE = "That track no longer exists. Pick another or leave it empty.";
 const TASK_GONE = "That task no longer exists.";
@@ -128,7 +129,13 @@ export async function setTaskStatus(input: unknown): Promise<ActionResult<Task>>
 
   const [updated] = await db
     .update(tasks)
-    .set({ status, completedAt: completedAtFor(status), updatedAt: new Date() })
+    .set({
+      status,
+      completedAt: completedAtFor(status),
+      // Reviews belong to finished work; reopening a task drops its schedule.
+      ...(status === "done" ? {} : { reviewStage: 0, reviewDueAt: null }),
+      updatedAt: new Date(),
+    })
     .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
     .returning();
 
@@ -150,6 +157,64 @@ export async function deleteTask(input: unknown): Promise<ActionResult> {
     .returning({ id: tasks.id });
 
   if (deleted.length === 0) return fail(TASK_GONE, "NOT_FOUND");
+
+  revalidateTaskViews();
+  return ok(undefined);
+}
+
+/** Come back to a finished task in 3, 7 and 21 days. */
+export async function scheduleReviews(input: unknown): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = taskIdSchema.safeParse(input);
+  if (!parsed.success) return fail("Unknown task.");
+  const { timezone } = await requireSettings();
+
+  const updated = await db
+    .update(tasks)
+    .set({ ...firstReview(dayKey(Date.now(), timezone), timezone), updatedAt: new Date() })
+    .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, user.id), eq(tasks.status, "done")))
+    .returning({ id: tasks.id });
+  if (updated.length === 0) return fail("Only finished tasks can be reviewed.", "NOT_DONE");
+
+  revalidateTaskViews();
+  return ok(undefined);
+}
+
+/** Mark today's review done and schedule the next, or finish the series. */
+export async function completeReview(input: unknown): Promise<ActionResult<{ finished: boolean }>> {
+  const user = await requireUser();
+  const parsed = taskIdSchema.safeParse(input);
+  if (!parsed.success) return fail("Unknown task.");
+  const { timezone } = await requireSettings();
+
+  const [task] = await db
+    .select({ id: tasks.id, reviewStage: tasks.reviewStage })
+    .from(tasks)
+    .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, user.id)))
+    .limit(1);
+  if (!task || task.reviewStage === 0) return fail("That review is no longer scheduled.", "NOT_FOUND");
+
+  const next = afterReview(task.reviewStage, dayKey(Date.now(), timezone), timezone);
+  await db
+    .update(tasks)
+    .set({ ...next, reviewsDone: sql`${tasks.reviewsDone} + 1`, updatedAt: new Date() })
+    // Guarded on the stage it was read at, so a double click counts once.
+    .where(and(eq(tasks.id, task.id), eq(tasks.reviewStage, task.reviewStage)));
+
+  revalidateTaskViews();
+  return ok({ finished: next.reviewStage === 0 });
+}
+
+/** Drop a task's remaining reviews. */
+export async function stopReviews(input: unknown): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = taskIdSchema.safeParse(input);
+  if (!parsed.success) return fail("Unknown task.");
+
+  await db
+    .update(tasks)
+    .set({ reviewStage: 0, reviewDueAt: null, updatedAt: new Date() })
+    .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, user.id)));
 
   revalidateTaskViews();
   return ok(undefined);
