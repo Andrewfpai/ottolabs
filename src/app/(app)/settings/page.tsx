@@ -5,6 +5,7 @@ import { PageContainer, PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_POMODORO } from "@/db/schema";
 import { AccessManager } from "@/features/access/components/access-manager";
+import { InviteLinksManager } from "@/features/access/components/invite-links-manager";
 import { getAccessList } from "@/features/access/server/queries";
 import { SharingToggles } from "@/features/friends/components/sharing-toggles";
 import { AvatarPicker } from "@/features/friends/components/avatar-picker";
@@ -167,10 +168,13 @@ export default async function SettingsPage() {
             Access
           </h2>
           <p className="text-muted-foreground mt-1 mb-4 text-xs">
-            Only you see this, as an owner. Owners come from ALLOWED_EMAILS in Vercel; everyone
-            else is invited here.
+            Only you see this, as an owner. Send a one-time link, or add an address you already
+            know. Owners come from ALLOWED_EMAILS in Vercel.
           </p>
-          <AccessManager access={access} timeZone={settings.timezone} />
+          <InviteLinksManager links={access.links} now={access.now} timeZone={settings.timezone} />
+          <div className="mt-6 border-t pt-6">
+            <AccessManager access={access} timeZone={settings.timezone} />
+          </div>
         </section>
       ) : null}
 

@@ -23,7 +23,11 @@ import {
   verificationTokens,
 } from "@/db/schema";
 import { pictureFor } from "@/lib/avatars";
+import { cookies } from "next/headers";
+
+import { INVITE_COOKIE } from "@/features/access/lib/invite-links";
 import { hasAccess } from "@/features/access/server/check";
+import { redeemInvite } from "@/features/access/server/invite-links";
 import { ownerEmails } from "@/lib/access";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -71,7 +75,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
       }
       // Owners from the environment, everyone else from the invite list.
-      return hasAccess(user.email);
+      if (await hasAccess(user.email)) return true;
+
+      // Or a one-time invite link, carried through Google in a cookie by
+      // /invite/[token]. Whichever Google account comes back spends it.
+      const jar = await cookies();
+      const token = jar.get(INVITE_COOKIE)?.value;
+      if (!token || !user.email) return false;
+      const granted = await redeemInvite(token, user.email);
+      try {
+        jar.delete(INVITE_COOKIE);
+      } catch {
+        // Read-only here in some contexts; it expires within minutes anyway.
+      }
+      return granted;
     },
 
     session({ session, user }) {

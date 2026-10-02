@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
-    "That Google account has not been invited. Ask the owner to add it under Settings → Access.",
+    "That Google account has not been invited. Ask the owner for an invite link, or to add your address.",
   Configuration:
     "Auth is not configured. Check AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET and AUTH_SECRET in .env.local.",
   Verification: "That sign-in link has expired. Try again.",

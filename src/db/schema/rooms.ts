@@ -27,6 +27,13 @@ export const studyRooms = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    /** What the room is working toward, shown to everyone in it: "Finish chapter 3". */
+    goal: text("goal"),
+    /**
+     * The secret in the room's invite link. Anyone with access to OttoLabs who
+     * has it can join. Regenerating it retires the old link.
+     */
+    inviteCode: text("invite_code").unique(),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -36,6 +43,7 @@ export const studyRooms = pgTable(
   (t) => [
     index("study_rooms_owner_idx").on(t.ownerId),
     check("study_rooms_name_length", sql`char_length(${t.name}) between 1 and 60`),
+    check("study_rooms_goal_length", sql`${t.goal} is null or char_length(${t.goal}) between 1 and 120`),
   ],
 );
 
