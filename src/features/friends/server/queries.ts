@@ -27,7 +27,14 @@ import { isHeartbeatFresh } from "@/features/sessions/lib/staleness";
 import { requireUser } from "@/lib/auth-guard";
 import { addDays, zonedInstant } from "@/lib/time/calendar-day";
 
-export type Person = { id: string; name: string; email: string; image: string | null };
+export type Person = {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  /** Null until they pick one in Settings. */
+  username: string | null;
+};
 
 /** A friend's running timer, only when they share it and it is genuinely live. */
 export type LiveStatus = {
@@ -55,10 +62,18 @@ export type FriendsOverview = {
   outgoing: FriendRequest[];
 };
 
-const personColumns = { id: users.id, name: users.name, email: users.email, image: users.image };
+const personColumns = {
+  id: users.id,
+  name: users.name,
+  email: users.email,
+  image: users.image,
+  username: users.username,
+};
 
-function toPerson(row: { id: string; name: string | null; email: string; image: string | null }): Person {
-  return { id: row.id, name: displayName(row), email: row.email, image: row.image };
+type PersonRow = { id: string; name: string | null; email: string; image: string | null; username: string | null };
+
+function toPerson(row: PersonRow): Person {
+  return { id: row.id, name: displayName(row), email: row.email, image: row.image, username: row.username };
 }
 
 type SharingSettings = AnalyticsSettings & { shareTrackNames: boolean; shareLiveStatus: boolean };
@@ -248,7 +263,16 @@ export async function getFriendsOverview(): Promise<FriendsOverview> {
 
   return {
     people: [
-      card(toPerson({ id: viewer.id, name: viewer.name, email: viewer.email, image: viewer.image }), true),
+      card(
+        toPerson({
+          id: viewer.id,
+          name: viewer.name,
+          email: viewer.email,
+          image: viewer.image,
+          username: await getMyUsername(),
+        }),
+        true,
+      ),
       ...accepted.map((r) => card(toPerson(r.other), false)),
     ],
     incoming: incoming.map(toRequest),
@@ -328,4 +352,15 @@ export async function getMySharing(): Promise<{ shareTrackNames: boolean; shareL
   const viewer = await requireUser();
   const s = (await loadSettings([viewer.id])).get(viewer.id) ?? FALLBACK_SETTINGS;
   return { shareTrackNames: s.shareTrackNames, shareLiveStatus: s.shareLiveStatus };
+}
+
+/** Your username, or null if you have not picked one. */
+export async function getMyUsername(): Promise<string | null> {
+  const viewer = await requireUser();
+  const [row] = await db
+    .select({ username: users.username })
+    .from(users)
+    .where(eq(users.id, viewer.id))
+    .limit(1);
+  return row?.username ?? null;
 }

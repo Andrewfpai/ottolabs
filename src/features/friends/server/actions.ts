@@ -6,14 +6,15 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { friendships, userSettings, users } from "@/db/schema";
-import { inviteSchema } from "@/features/access/schema";
 import { hasAccess } from "@/features/access/server/check";
-import { type ActionResult, fail, isUniqueViolation, ok } from "@/lib/action-result";
+import { parseFriendHandle, usernameSchema } from "@/features/friends/lib/username";
+import { type ActionResult, fail, isUniqueViolation, ok, violatedConstraint } from "@/lib/action-result";
 import { requireUser } from "@/lib/auth-guard";
 
 const idSchema = z.object({ id: z.uuid() });
 const respondSchema = z.object({ id: z.uuid(), accept: z.boolean() });
 const unfriendSchema = z.object({ friendId: z.string().min(1).max(100) });
+const handleSchema = z.object({ handle: z.string().max(254) });
 const sharingSchema = z.object({ shareTrackNames: z.boolean(), shareLiveStatus: z.boolean() });
 
 function revalidateFriends() {
@@ -30,28 +31,33 @@ function pair(a: string, b: string) {
 }
 
 /**
- * Ask someone to be friends, by email. Only people who can use this OttoLabs
- * can be asked. If they already asked you, this accepts their request rather
- * than making a second one.
+ * Ask someone to be friends, by username or email. Only people who can use
+ * this OttoLabs can be asked. If they already asked you, this accepts their
+ * request rather than making a second one.
  */
 export async function sendFriendRequest(input: unknown): Promise<ActionResult<"sent" | "accepted">> {
   const me = await requireUser();
 
-  const parsed = inviteSchema.safeParse(input);
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Enter a valid email address.");
-  const { email } = parsed.data;
-
-  if (email === me.email.toLowerCase()) return fail("That is you.");
+  const parsed = handleSchema.safeParse(input);
+  const handle = parsed.success ? parseFriendHandle(parsed.data.handle) : null;
+  if (!handle) return fail("Enter a username like @budi, or an email address.");
 
   const [target] = await db
     .select({ id: users.id, email: users.email })
     .from(users)
-    .where(eq(sql`lower(${users.email})`, email))
+    .where(
+      handle.kind === "email"
+        ? eq(sql`lower(${users.email})`, handle.email)
+        : eq(users.username, handle.username),
+    )
     .limit(1);
 
+  if (target?.id === me.id) return fail("That is you.");
   if (!target || !(await hasAccess(target.email))) {
     return fail(
-      "Nobody with that email uses this OttoLabs yet. They need an invite from an owner, then to sign in once.",
+      handle.kind === "email"
+        ? "Nobody with that email uses this OttoLabs yet. They need an invite from an owner, then to sign in once."
+        : `Nobody here is called @${handle.username}. Check the spelling, or try their email.`,
       "NOT_FOUND",
     );
   }
@@ -159,4 +165,25 @@ export async function updateSharing(input: unknown): Promise<ActionResult> {
   revalidateFriends();
   revalidatePath("/settings");
   return ok(undefined);
+}
+
+/** Choose or change your username. Taken names are refused, case-insensitively. */
+export async function setUsername(input: unknown): Promise<ActionResult<string>> {
+  const me = await requireUser();
+  const parsed = z.object({ username: usernameSchema }).safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "That username will not work.");
+  const { username } = parsed.data;
+
+  try {
+    await db.update(users).set({ username }).where(eq(users.id, me.id));
+  } catch (error) {
+    if (isUniqueViolation(error) && violatedConstraint(error)?.includes("username")) {
+      return fail(`@${username} is taken. Try another.`, "TAKEN");
+    }
+    throw error;
+  }
+
+  revalidateFriends();
+  revalidatePath("/settings");
+  return ok(username);
 }

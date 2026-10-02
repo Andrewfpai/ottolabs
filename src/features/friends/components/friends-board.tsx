@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { inviteSchema } from "@/features/access/schema";
 import { LiveBadge } from "@/features/friends/components/live-badge";
 import { PersonAvatar } from "@/features/friends/components/person-avatar";
 import { weeklyStandings } from "@/features/friends/lib/sharing";
+import { parseFriendHandle } from "@/features/friends/lib/username";
 import {
   cancelRequest,
   respondToRequest,
@@ -28,7 +28,7 @@ export function FriendsBoard({ overview }: { overview: FriendsOverview }) {
 
   return (
     <div className="space-y-6">
-      <AddFriend />
+      <AddFriend myUsername={overview.people.find((p) => p.isSelf)?.username ?? null} />
 
       {overview.incoming.length > 0 ? (
         <RequestList title="Requests for you" requests={overview.incoming} kind="incoming" />
@@ -58,6 +58,9 @@ export function FriendsBoard({ overview }: { overview: FriendsOverview }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="truncate text-sm font-medium">{person.name}</span>
+                    {person.username ? (
+                      <span className="text-muted-foreground truncate text-xs">@{person.username}</span>
+                    ) : null}
                     {person.isSelf ? (
                       <Badge variant="secondary" className="text-xs">
                         You
@@ -101,26 +104,25 @@ export function FriendsBoard({ overview }: { overview: FriendsOverview }) {
   );
 }
 
-function AddFriend() {
-  const [email, setEmail] = useState("");
+function AddFriend({ myUsername }: { myUsername: string | null }) {
+  const [handle, setHandle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    const check = inviteSchema.safeParse({ email });
-    if (!check.success) {
-      setError(check.error.issues[0]?.message ?? "Enter a valid email address.");
+    if (!parseFriendHandle(handle)) {
+      setError("Enter a username like @budi, or an email address.");
       return;
     }
     startTransition(async () => {
-      const result = await sendFriendRequest(check.data);
+      const result = await sendFriendRequest({ handle });
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      setEmail("");
+      setHandle("");
       toast.success(
         result.data === "accepted"
           ? "They had already asked you, so you are now friends."
@@ -133,20 +135,20 @@ function AddFriend() {
     <section aria-labelledby="add-friend" className="bg-card rounded-xl border p-4">
       <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1 space-y-2">
-          <Label htmlFor="friend-email" id="add-friend">
+          <Label htmlFor="friend-handle" id="add-friend">
             Add a friend
           </Label>
           <Input
-            id="friend-email"
-            type="email"
-            inputMode="email"
+            id="friend-handle"
             autoComplete="off"
-            placeholder="friend@gmail.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="@username or email"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
           />
         </div>
-        <Button type="submit" className="cursor-pointer gap-1.5" disabled={pending || !email.trim()} aria-busy={pending}>
+        <Button type="submit" className="cursor-pointer gap-1.5" disabled={pending || !handle.trim()} aria-busy={pending}>
           <UserPlus className="size-4" aria-hidden />
           {pending ? "Sending…" : "Send request"}
         </Button>
@@ -160,6 +162,18 @@ function AddFriend() {
         </p>
       ) : (
         <p className="text-muted-foreground mt-2 text-xs">
+          {myUsername ? (
+            <>
+              Friends can add you as <span className="text-foreground font-medium">@{myUsername}</span>.{" "}
+            </>
+          ) : (
+            <>
+              <Link href="/settings#username" className="text-foreground underline underline-offset-4">
+                Pick a username
+              </Link>{" "}
+              so friends can add you without your email.{" "}
+            </>
+          )}
           They need access to this OttoLabs and to have signed in once. Friends see each other&apos;s
           focus time and streaks; what else is shared is up to each of you in Settings.
         </p>
@@ -198,7 +212,9 @@ function RequestList({
             <PersonAvatar name={request.person.name} image={request.person.image} className="size-8" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{request.person.name}</div>
-              <div className="text-muted-foreground truncate text-xs">{request.person.email}</div>
+              <div className="text-muted-foreground truncate text-xs">
+                {request.person.username ? `@${request.person.username}` : request.person.email}
+              </div>
             </div>
             {kind === "incoming" ? (
               <div className="flex gap-2">

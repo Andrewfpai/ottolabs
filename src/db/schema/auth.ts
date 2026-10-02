@@ -9,8 +9,10 @@
  * lets v1.1 add the Calendar scope to this same grant without a second OAuth
  * flow — do not drop this table when trimming things down.
  */
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   pgTable,
@@ -20,15 +22,25 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
-export const users = pgTable("users", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name"),
-  email: text("email").notNull().unique(),
-  emailVerified: timestamp("email_verified", { mode: "date", withTimezone: true }),
-  image: text("image"),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name"),
+    email: text("email").notNull().unique(),
+    emailVerified: timestamp("email_verified", { mode: "date", withTimezone: true }),
+    image: text("image"),
+    /**
+     * Ours, not the adapter's: how friends find you without your email.
+     * Null until chosen in Settings. Stored lowercase, so a plain unique
+     * constraint is case-insensitive. Rules in `features/friends/lib/username.ts`.
+     */
+    username: text("username").unique(),
+  },
+  (t) => [check("users_username_format", sql`${t.username} ~ '^[a-z0-9_]{3,20}$'`)],
+);
 
 export const accounts = pgTable(
   "accounts",

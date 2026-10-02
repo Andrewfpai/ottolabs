@@ -7,10 +7,12 @@ import { DEFAULT_POMODORO } from "@/db/schema";
 import { AccessManager } from "@/features/access/components/access-manager";
 import { getAccessList } from "@/features/access/server/queries";
 import { SharingToggles } from "@/features/friends/components/sharing-toggles";
+import { UsernameForm } from "@/features/friends/components/username-form";
+import { suggestUsername } from "@/features/friends/lib/username";
 import { ReminderSettings } from "@/features/reminders/components/reminder-settings";
 import { getReminderSettings } from "@/features/reminders/server/queries";
 import { PomodoroAlertSettings } from "@/features/sessions/components/pomodoro-alert-settings";
-import { getMySharing } from "@/features/friends/server/queries";
+import { getMySharing, getMyUsername } from "@/features/friends/server/queries";
 import { DeleteAccount } from "@/features/settings/components/delete-account";
 import { SettingsForm } from "@/features/settings/components/settings-form";
 import { isOwnerEmail } from "@/lib/access";
@@ -49,12 +51,13 @@ function supportedTimeZones(current: string): string[] {
 }
 
 export default async function SettingsPage() {
-  const [user, settings, access, sharing, reminders] = await Promise.all([
+  const [user, settings, access, sharing, reminders, username] = await Promise.all([
     requireUser(),
     requireSettings(),
     getAccessList(),
     getMySharing(),
     getReminderSettings(),
+    getMyUsername(),
   ]);
   const pomodoro = settings.defaultPomodoro ?? DEFAULT_POMODORO;
 
@@ -100,6 +103,20 @@ export default async function SettingsPage() {
           Notifications on your phone or computer, even when OttoLabs is closed.
         </p>
         <ReminderSettings settings={reminders} />
+      </section>
+
+      <section
+        id="username"
+        aria-labelledby="username-heading"
+        className="bg-card mt-6 scroll-mt-20 rounded-xl border p-4 sm:p-6"
+      >
+        <h2 id="username-heading" className="text-sm font-medium">
+          Username
+        </h2>
+        <p className="text-muted-foreground mt-1 mb-4 text-xs">
+          How friends find you on the Friends page, without needing your email.
+        </p>
+        <UsernameForm current={username} suggestion={suggestUsername(user.email)} />
       </section>
 
       <section

@@ -181,7 +181,8 @@ and the manifest lives in `src/app/manifest.ts`.
 ## Friends and study rooms
 
 **Friends** are mutual: a request has to be accepted before either side sees
-anything. A friend's profile is the Analytics page computed on their sessions,
+anything. Add someone by **username** (`users.username`, chosen in Settings,
+lowercase letters, digits and underscores) or by email. A friend's profile is the Analytics page computed on their sessions,
 in their time zone. **Study rooms** are small groups (up to 12) who see each
 other's live timers; the owner adds friends, and joining is the consent to be
 seen. Sessions started from inside a room carry its `room_id`, which is what
