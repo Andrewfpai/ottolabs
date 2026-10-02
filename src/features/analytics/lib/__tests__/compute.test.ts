@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { addDays, zonedInstant } from "@/lib/time/calendar-day";
 
-import { computeAnalytics } from "../compute";
+import { computeAnalytics, computeFocusSummary } from "../compute";
 
 const TZ = "Asia/Jakarta";
 const NOW = zonedInstant("2026-10-02", "16:00", TZ).getTime();
@@ -80,5 +80,43 @@ describe("computeAnalytics", () => {
       tasks: [],
     });
     expect(data.tracks.map((t) => t.title).sort()).toEqual(["Databases", "Deleted track"]);
+  });
+});
+
+describe("computeFocusSummary", () => {
+  const settings = { timeZone: TZ, dayStartHour: 4, weekStartsOn: 1 };
+  const at = (day: string, time: string, minutes: number, trackId = "a") => {
+    const startedAt = zonedInstant(day, time, TZ);
+    return { startedAt, endedAt: new Date(startedAt.getTime() + minutes * 60_000), pausedMs: 0, trackId };
+  };
+
+  it("splits today, this week and per-track week totals on focus days", () => {
+    // NOW is Friday 2 Oct 16:00; the week (Monday start) began 28 Sep.
+    const summary = computeFocusSummary({
+      settings,
+      now: NOW,
+      sessions: [
+        at("2026-10-02", "09:00", 60, "a"), // today
+        at("2026-10-02", "02:00", 30, "b"), // 02:00 Friday is Thursday night's work
+        at("2026-09-28", "10:00", 45, "b"), // Monday, this week
+        at("2026-09-27", "22:00", 90, "a"), // Sunday, last week
+      ],
+    });
+
+    expect(summary.todayKey).toBe("2026-10-02");
+    expect(summary.weekStart).toBe("2026-09-28");
+    expect(summary.todayMs).toBe(60 * 60_000);
+    expect(summary.weekMs).toBe((60 + 30 + 45) * 60_000);
+    expect(summary.weekByTrack).toEqual({ a: 60 * 60_000, b: 75 * 60_000 });
+    expect(summary.recent.byDay["2026-09-27"]).toBe(90 * 60_000);
+  });
+
+  it("counts the current streak up to today", () => {
+    const summary = computeFocusSummary({
+      settings,
+      now: NOW,
+      sessions: ["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"].map((d) => at(d, "10:00", 30)),
+    });
+    expect(summary.streaks).toEqual({ current: 4, longest: 4 });
   });
 });

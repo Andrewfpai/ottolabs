@@ -134,7 +134,7 @@ export function TaskRow({
               title={due.full}
             >
               <CalendarClock className="size-3.5" aria-hidden />
-              <span className="font-numeric">{due.text}</span>
+              <span>{due.text}</span>
               <span className="sr-only">, due {due.full}</span>
             </span>
           ) : null}

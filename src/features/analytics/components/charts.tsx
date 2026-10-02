@@ -47,7 +47,7 @@ function Readout({ title, rows }: { title: string; rows: ReadoutRow[] }) {
               style={{ background: row.color }}
             />
           ) : null}
-          <span className="font-numeric text-foreground font-semibold">{row.value}</span>
+          <span className="tabular text-foreground font-semibold">{row.value}</span>
           <span className="text-muted-foreground">{row.label}</span>
         </div>
       ))}

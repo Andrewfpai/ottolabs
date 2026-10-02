@@ -1,10 +1,12 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { userSettings } from "@/db/schema";
+import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { requireUser } from "@/lib/auth-guard";
 
 /**
@@ -60,4 +62,30 @@ export async function setTimezone(candidate: string): Promise<void> {
     .update(userSettings)
     .set({ timezone: parsed.data })
     .where(eq(userSettings.userId, user.id));
+}
+
+/** Fifteen minutes to a full day; a goal outside that is a typo. */
+const dailyGoalSchema = z.object({
+  minutes: z
+    .number()
+    .int()
+    .min(15, "Set at least 15 minutes")
+    .max(24 * 60, "A day only has 24 hours"),
+});
+
+export async function setDailyGoal(input: unknown): Promise<ActionResult<number>> {
+  const user = await requireUser();
+
+  const parsed = dailyGoalSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "That goal does not look right.");
+  }
+
+  await db
+    .update(userSettings)
+    .set({ dailyGoalMinutes: parsed.data.minutes })
+    .where(eq(userSettings.userId, user.id));
+
+  revalidatePath("/dashboard");
+  return ok(parsed.data.minutes);
 }

@@ -30,12 +30,15 @@ export function FocusHeatmap({
   start,
   end,
   byDay,
+  periodLabel = "the last year",
 }: {
   /** First day of the first column — always a week start. */
   start: DayKey;
   /** Today; later cells in the final week are left blank. */
   end: DayKey;
   byDay: Record<DayKey, number>;
+  /** How the summary line names the span: "the last year", "the last 17 weeks". */
+  periodLabel?: string;
 }) {
   const [hovered, setHovered] = useState<DayKey | null>(null);
 
@@ -69,7 +72,7 @@ export function FocusHeatmap({
           style={{ gridTemplateColumns: `repeat(${weeks.length}, 11px)` }}
           onPointerLeave={() => setHovered(null)}
           role="img"
-          aria-label={`Daily focus over the last year. ${activeDays} days with focus.`}
+          aria-label={`Daily focus over ${periodLabel}. ${activeDays} days with focus.`}
         >
           {monthLabels.map((label, i) => (
             <span
@@ -113,7 +116,7 @@ export function FocusHeatmap({
               on {formatDayKey(hovered, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
             </>
           ) : (
-            `${activeDays} days with focus in the last year. Point at a day for its total.`
+            `${activeDays} days with focus in ${periodLabel}. Point at a day for its total.`
           )}
         </p>
         <div className="text-muted-foreground flex items-center gap-1.5">

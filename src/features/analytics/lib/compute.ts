@@ -166,3 +166,58 @@ export function computeAnalytics(input: {
     tasks: taskStats(input.tasks, range, timeZone),
   };
 }
+
+/** How far back the dashboard's recent-activity strip reaches, in weeks. */
+export const RECENT_WEEKS = 17;
+
+export type FocusSummary = {
+  todayKey: DayKey;
+  /** Finished focus on today's focus day; the live timer is added client-side. */
+  todayMs: number;
+  weekStart: DayKey;
+  weekMs: number;
+  /** This week's focus per track id. */
+  weekByTrack: Record<string, number>;
+  streaks: Streaks;
+  recent: { start: DayKey; end: DayKey; byDay: Record<DayKey, number> };
+};
+
+/**
+ * The dashboard's numbers. Same slices and the same day rules as the
+ * analytics page, so "today" here and today's bar there are one number.
+ * Pass a year of sessions so the streak is not cut short.
+ */
+export function computeFocusSummary(input: {
+  settings: AnalyticsSettings;
+  now: number;
+  sessions: readonly SplittableSession[];
+}): FocusSummary {
+  const { settings, now } = input;
+  const todayKey = focusDayKey(now, settings.timeZone, settings.dayStartHour);
+  const weekStart = addDays(todayKey, -((weekdayOf(todayKey) - settings.weekStartsOn + 7) % 7));
+  const recentStart = addDays(weekStart, -(RECENT_WEEKS - 1) * 7);
+
+  const slices = splitSessions(input.sessions, settings.timeZone, settings.dayStartHour, now);
+  const byDay = totalsByDay(slices);
+
+  let weekMs = 0;
+  const weekByTrack: Record<string, number> = {};
+  for (const slice of slices) {
+    if (slice.day < weekStart || slice.day > todayKey) continue;
+    weekMs += slice.ms;
+    weekByTrack[slice.trackId] = (weekByTrack[slice.trackId] ?? 0) + slice.ms;
+  }
+
+  const recentByDay: Record<DayKey, number> = {};
+  for (const [day, ms] of byDay) if (day >= recentStart && day <= todayKey) recentByDay[day] = ms;
+
+  return {
+    todayKey,
+    todayMs: byDay.get(todayKey) ?? 0,
+    weekStart,
+    weekMs,
+    weekByTrack,
+    streaks: streaks(byDay, todayKey),
+    recent: { start: recentStart, end: todayKey, byDay: recentByDay },
+  };
+}

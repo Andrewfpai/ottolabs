@@ -123,7 +123,7 @@ export function DataTable({
             {rows.map(([a, b]) => (
               <tr key={a} className="border-t">
                 <td className="px-3 py-1">{a}</td>
-                <td className="font-numeric px-3 py-1 text-right">{b}</td>
+                <td className="tabular px-3 py-1 text-right">{b}</td>
               </tr>
             ))}
           </tbody>
@@ -151,7 +151,7 @@ export function TrackBreakdown({ tracks }: { tracks: TrackFocus[] }) {
           <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
             <span className="truncate">{track.title}</span>
             <span className="text-muted-foreground shrink-0 text-xs">
-              <span className="text-foreground font-numeric font-medium">
+              <span className="text-foreground tabular font-medium">
                 {formatCompact(track.ms)}
               </span>{" "}
               · {Math.round(track.share * 100)}%

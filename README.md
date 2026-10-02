@@ -16,8 +16,8 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full plan.
 | 1 | Tracks CRUD + timer engine + session log | ✅ done |
 | 2 | Focus mode, Pomodoro, idle-return prompt (heartbeat + reaper landed in Phase 1) | ✅ done |
 | 3 | Tasks + calendar | ✅ done |
-| 4 | Analytics + goals | next |
-| 5 | Polish, PWA, deploy | |
+| 4 | Analytics + goals | ✅ done |
+| 5 | Polish, PWA, deploy | next |
 | 1.1 | Google Calendar sync | deferred |
 
 ## Setup

@@ -63,7 +63,7 @@ function TaskChip({
       )}
     >
       <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", trackDot(task))} />
-      {time ? <span className="font-numeric text-muted-foreground shrink-0">{time}</span> : null}
+      {time ? <span className="tabular text-muted-foreground shrink-0">{time}</span> : null}
       <span className="truncate">{task.title}</span>
       {done ? <span className="sr-only">, done</span> : null}
       {late ? <span className="sr-only">, overdue</span> : null}
@@ -91,7 +91,7 @@ function FocusLabel({ ms, className }: { ms: number; className?: string }) {
   return (
     <span
       className={cn(
-        "font-numeric flex items-center gap-1 text-xs",
+        "tabular flex items-center gap-1 text-xs",
         ms > 0 ? "text-primary" : "text-muted-foreground",
         className,
       )}
@@ -141,7 +141,7 @@ export function MonthGrid({ data, onEdit, onCreate }: { data: CalendarData } & G
               <div className="flex items-center justify-between">
                 <span
                   className={cn(
-                    "font-numeric flex size-6 items-center justify-center rounded-full text-xs",
+                    "tabular flex size-6 items-center justify-center rounded-full text-xs",
                     isToday && "bg-primary text-primary-foreground font-semibold",
                     outside && !isToday && "text-muted-foreground/60",
                   )}
@@ -223,7 +223,7 @@ export function WeekGrid({ data, onEdit, onCreate }: { data: CalendarData } & Gr
                 <span className="text-muted-foreground text-xs">
                   {formatDayKey(key, { weekday: "short" })}
                 </span>
-                <span className={cn("font-numeric text-lg font-semibold", isToday && "text-primary")}>
+                <span className={cn("tabular text-lg font-semibold", isToday && "text-primary")}>
                   {parseDayKey(key).day}
                 </span>
               </span>

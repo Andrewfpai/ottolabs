@@ -232,7 +232,7 @@ export function TaskFormDialog({
                 value={dueTime}
                 onChange={(e) => setDueTime(e.target.value)}
                 disabled={!dueDate}
-                className="font-numeric w-32 cursor-pointer"
+                className="tabular w-32 cursor-pointer"
               />
 
               {dueDate ? (

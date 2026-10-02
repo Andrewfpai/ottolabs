@@ -62,7 +62,7 @@ export function AgendaList({
                 {dayHeading(key, todayKey)}
               </h3>
               {focusMs ? (
-                <span className="text-primary font-numeric flex items-center gap-1 text-xs">
+                <span className="text-primary tabular flex items-center gap-1 text-xs">
                   <Timer className="size-3" aria-hidden />
                   {formatCompact(focusMs)} focused
                 </span>

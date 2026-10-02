@@ -48,6 +48,8 @@ function revalidateSessionViews() {
   revalidatePath("/tracks");
   revalidatePath("/dashboard");
   revalidatePath("/analytics");
+  // The calendar's focus overlay reads sessions too.
+  revalidatePath("/calendar");
 }
 
 export async function startSession(

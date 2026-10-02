@@ -122,7 +122,7 @@ export function CalendarView({ data, tracks }: { data: CalendarData; tracks: Tra
 
       {showFocus ? (
         <p className="text-muted-foreground mb-3 text-sm">
-          <span className="text-foreground font-numeric font-medium">
+          <span className="text-foreground font-medium">
             {formatCompact(totalFocusMs)}
           </span>{" "}
           focused in this view. Sessions count toward the day they started on.

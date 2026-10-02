@@ -82,7 +82,10 @@ export async function getTrackById(id: string): Promise<Track | null> {
   return track ?? null;
 }
 
-export type TrackOption = Pick<Track, "id" | "title" | "color" | "icon" | "status">;
+export type TrackOption = Pick<
+  Track,
+  "id" | "title" | "color" | "icon" | "status" | "targetMinutesPerWeek"
+>;
 
 /**
  * Every track, archived included, for pickers and filters. Callers decide
@@ -99,6 +102,7 @@ export async function getTrackOptions(): Promise<TrackOption[]> {
       color: tracks.color,
       icon: tracks.icon,
       status: tracks.status,
+      targetMinutesPerWeek: tracks.targetMinutesPerWeek,
     })
     .from(tracks)
     .where(eq(tracks.userId, user.id))
