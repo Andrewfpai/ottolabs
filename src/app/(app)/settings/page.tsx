@@ -13,6 +13,7 @@ import { suggestUsername } from "@/features/friends/lib/username";
 import { ReminderSettings } from "@/features/reminders/components/reminder-settings";
 import { getReminderSettings } from "@/features/reminders/server/queries";
 import { PomodoroAlertSettings } from "@/features/sessions/components/pomodoro-alert-settings";
+import { FocusSoundControls } from "@/features/sounds/components/focus-sound-picker";
 import { getMyProfile, getMySharing } from "@/features/friends/server/queries";
 import { DeleteAccount } from "@/features/settings/components/delete-account";
 import { SettingsForm } from "@/features/settings/components/settings-form";
@@ -90,6 +91,23 @@ export default async function SettingsPage() {
           Saved in this browser, so your laptop and phone can differ.
         </p>
         <PomodoroAlertSettings />
+      </section>
+
+      <section
+        id="focus-sounds"
+        aria-labelledby="sounds-heading"
+        className="bg-card mt-6 scroll-mt-20 rounded-xl border p-4 sm:p-6"
+      >
+        <h2 id="sounds-heading" className="text-sm font-medium">
+          Focus sounds on this device
+        </h2>
+        <p className="text-muted-foreground mt-1 mb-4 text-xs">
+          Generated live in your browser, so nothing downloads. They play while a timer runs and
+          fade out on pauses and breaks. Pick one to hear a short preview.
+        </p>
+        <div className="max-w-md">
+          <FocusSoundControls audibleNow={false} />
+        </div>
       </section>
 
       <section

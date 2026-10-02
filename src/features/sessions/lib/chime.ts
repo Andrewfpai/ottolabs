@@ -14,7 +14,8 @@
 
 let context: AudioContext | null = null;
 
-function getContext(): AudioContext | null {
+/** The one AudioContext for the page, shared by the bell and focus sounds. */
+export function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
     context ??= new AudioContext();
@@ -31,7 +32,7 @@ function getContext(): AudioContext | null {
 export function unlockAudioOnFirstGesture(): () => void {
   if (typeof window === "undefined") return () => {};
   const unlock = () => {
-    const ctx = getContext();
+    const ctx = getAudioContext();
     if (ctx?.state === "suspended") void ctx.resume().catch(() => {});
     remove();
   };
@@ -74,7 +75,7 @@ function bell(ctx: AudioContext, frequency: number, start: number, volume: numbe
 }
 
 export function playChime(kind: "work" | "break"): void {
-  const ctx = getContext();
+  const ctx = getAudioContext();
   if (!ctx) return;
 
   try {

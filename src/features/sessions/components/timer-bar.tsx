@@ -44,6 +44,8 @@ import {
 } from "@/features/sessions/lib/pomodoro";
 import { TIMER_LAYOUT_ID } from "@/features/sessions/lib/timer-layout";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
+import { FocusSoundButton } from "@/features/sounds/components/focus-sound-picker";
+import { useFocusSounds } from "@/features/sounds/hooks/use-focus-sounds";
 import { formatDuration, timerState } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
@@ -166,6 +168,8 @@ function TimerBarInner({
             </TooltipContent>
           </Tooltip>
 
+          <FocusSoundButton audibleNow={!isPaused} />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -265,6 +269,7 @@ export function TimerBar({ initial }: { initial: SessionWithTrack | null }) {
   useHeartbeat(session);
   const phase = usePomodoroEngine(session);
   usePomodoroAlerts(session, phase);
+  useFocusSounds(session);
   const { awayMs, dismiss } = useIdleReturn(session?.id);
 
   const inFocusMode = pathname === "/focus";

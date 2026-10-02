@@ -32,6 +32,7 @@ import { useElapsed } from "@/features/sessions/hooks/use-elapsed";
 import { usePomodoroPhase } from "@/features/sessions/hooks/use-pomodoro";
 import { formatCountdown, phaseLabel } from "@/features/sessions/lib/pomodoro";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
+import { FocusSoundButton } from "@/features/sounds/components/focus-sound-picker";
 import { formatCompact, formatDuration, timerState } from "@/lib/time/elapsed";
 import { TIMER_LAYOUT_ID } from "@/features/sessions/lib/timer-layout";
 import { trackColorClasses } from "@/lib/track-colors";
@@ -231,6 +232,7 @@ export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
         ) : null}
 
         <div className="flex items-center gap-2">
+          <FocusSoundButton audibleNow={!isPaused} className="size-10" />
           <Button
             variant="outline"
             size="lg"
