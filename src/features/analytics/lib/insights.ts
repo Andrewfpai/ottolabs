@@ -27,6 +27,17 @@ const WEEKDAY_PLURALS = [
   "Saturdays",
 ];
 
+/**
+ * Whose numbers these are. The same sentences describe your own week on the
+ * Analytics page and a friend's on their profile.
+ */
+export type Perspective = "self" | "friend";
+
+const WORDS: Record<Perspective, { Your: string; your: string; You: string }> = {
+  self: { Your: "Your", your: "your", You: "You" },
+  friend: { Your: "Their", your: "their", You: "They" },
+};
+
 export function formatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
@@ -40,8 +51,10 @@ export function buildInsights(input: {
   /** Titles and shares, largest first. */
   topTracks: readonly { title: string; share: number }[];
   streaks: Streaks;
+  perspective?: Perspective;
 }): Insight[] {
   const { kpis } = input;
+  const W = WORDS[input.perspective ?? "self"];
   if (kpis.sessionCount < MIN_SESSIONS_FOR_INSIGHTS) return [];
 
   const insights: Insight[] = [];
@@ -49,7 +62,7 @@ export function buildInsights(input: {
   if (input.peak) {
     insights.push({
       id: "peak",
-      text: `Your peak focus window is ${formatHour(input.peak.startHour)}–${formatHour(input.peak.endHour)}, with ${Math.round(input.peak.share * 100)}% of your focus.`,
+      text: `${W.Your} peak focus window is ${formatHour(input.peak.startHour)}–${formatHour(input.peak.endHour)}, with ${Math.round(input.peak.share * 100)}% of ${W.your} focus.`,
     });
   }
 
@@ -59,11 +72,14 @@ export function buildInsights(input: {
   );
   const [top, second] = ranked;
   if (top.ms > 0 && second.ms === 0) {
-    insights.push({ id: "day-part", text: `Practically all of your focus happens in the ${top.label}.` });
+    insights.push({
+      id: "day-part",
+      text: `Practically all of ${W.your} focus happens in the ${top.label}.`,
+    });
   } else if (top.ms > 0 && top.ms / second.ms >= 1.5) {
     insights.push({
       id: "day-part",
-      text: `You focus ${(top.ms / second.ms).toFixed(1)}× more in the ${top.label} than in the ${second.label}.`,
+      text: `${W.You} focus ${(top.ms / second.ms).toFixed(1)}× more in the ${top.label} than in the ${second.label}.`,
     });
   }
 
@@ -76,7 +92,7 @@ export function buildInsights(input: {
     if (best.weekday >= 0) {
       insights.push({
         id: "weekday",
-        text: `${WEEKDAY_PLURALS[best.weekday]} are your strongest day, averaging ${formatCompact(best.ms)}.`,
+        text: `${WEEKDAY_PLURALS[best.weekday]} are ${W.your} strongest day, averaging ${formatCompact(best.ms)}.`,
       });
     }
   }
@@ -84,20 +100,20 @@ export function buildInsights(input: {
   if (input.medianSessionMs) {
     insights.push({
       id: "session-length",
-      text: `Your typical session runs ${formatCompact(input.medianSessionMs)}.`,
+      text: `${W.Your} typical session runs ${formatCompact(input.medianSessionMs)}.`,
     });
   }
 
   insights.push({
     id: "consistency",
-    text: `You focused on ${kpis.activeDays} of the last ${kpis.days} days.`,
+    text: `${W.You} focused on ${kpis.activeDays} of the last ${kpis.days} days.`,
   });
 
   if (input.topTracks.length >= 2) {
     const [lead] = input.topTracks;
     insights.push({
       id: "top-track",
-      text: `${lead.title} took ${Math.round(lead.share * 100)}% of your focus.`,
+      text: `${lead.title} took ${Math.round(lead.share * 100)}% of ${W.your} focus.`,
     });
   }
 
@@ -106,8 +122,8 @@ export function buildInsights(input: {
       id: "streak",
       text:
         input.streaks.current >= input.streaks.longest
-          ? `You are on a ${input.streaks.current}-day streak, your longest yet.`
-          : `You are on a ${input.streaks.current}-day streak. Your record is ${input.streaks.longest}.`,
+          ? `${W.You} are on a ${input.streaks.current}-day streak, ${W.your} longest yet.`
+          : `${W.You} are on a ${input.streaks.current}-day streak. ${W.Your} record is ${input.streaks.longest}.`,
     });
   }
 

@@ -7,7 +7,7 @@
  * like it broke your streak *and* started a new one.
  */
 import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
 import type { PomodoroConfig } from "./sessions";
@@ -40,6 +40,13 @@ export const userSettings = pgTable("user_settings", {
     .default(DEFAULT_POMODORO),
 
   theme: text("theme").notNull().default("system"),
+
+  // What friends may see. Both default to private: sharing is something you
+  // choose, never something you discover you were already doing.
+  /** Off: friends see your time split across "Track 1, Track 2…". */
+  shareTrackNames: boolean("share_track_names").notNull().default(false),
+  /** On: friends see a "Studying now" badge while your timer runs. */
+  shareLiveStatus: boolean("share_live_status").notNull().default(false),
 });
 
 export const userSettingsRelations = relations(userSettings, ({ one }) => ({

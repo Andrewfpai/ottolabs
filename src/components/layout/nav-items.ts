@@ -6,6 +6,7 @@ import {
   Layers,
   ListTodo,
   Settings,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: ChartNoAxesColumn },
+  { href: "/friends", label: "Friends", icon: Users },
 ];
 
 export const SECONDARY_NAV_ITEMS: NavItem[] = [

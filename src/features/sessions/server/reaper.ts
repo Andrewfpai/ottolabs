@@ -2,9 +2,9 @@ import { and, eq, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { focusSessions } from "@/db/schema";
+import { STALE_AFTER_MINUTES } from "@/features/sessions/lib/staleness";
 
-/** How long a timer may go without a heartbeat before it counts as abandoned. */
-export const STALE_AFTER_MINUTES = 30;
+export { STALE_AFTER_MINUTES };
 
 /**
  * Closes sessions whose owner walked away without pressing Finish.

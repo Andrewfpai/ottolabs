@@ -15,13 +15,20 @@ import { formatCompact } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
 
-export function RangeFilter({ current }: { current: AnalyticsRangeKey }) {
+export function RangeFilter({
+  current,
+  basePath = "/analytics",
+}: {
+  current: AnalyticsRangeKey;
+  /** Where the links point: your own analytics, or a friend's profile. */
+  basePath?: string;
+}) {
   return (
     <nav aria-label="Date range" className="flex w-fit rounded-lg border p-0.5">
       {(Object.keys(ANALYTICS_RANGES) as AnalyticsRangeKey[]).map((key) => (
         <Link
           key={key}
-          href={key === "30d" ? "/analytics" : `/analytics?range=${key}`}
+          href={key === "30d" ? basePath : `${basePath}?range=${key}`}
           aria-current={key === current ? "page" : undefined}
           scroll={false}
           className={cn(

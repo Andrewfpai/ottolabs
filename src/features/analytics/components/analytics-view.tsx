@@ -12,12 +12,24 @@ import {
   TrackBreakdown,
 } from "@/features/analytics/components/panels";
 import { ANALYTICS_RANGES, type AnalyticsData } from "@/features/analytics/lib/compute";
-import { formatHour, MIN_SESSIONS_FOR_INSIGHTS } from "@/features/analytics/lib/insights";
+import { formatHour, MIN_SESSIONS_FOR_INSIGHTS, type Perspective } from "@/features/analytics/lib/insights";
 import { formatDayKey } from "@/lib/time/calendar-day";
 import { formatCompact } from "@/lib/time/elapsed";
 
-/** Everything under the page header, driven entirely by `data`. */
-export function AnalyticsView({ data }: { data: AnalyticsData }) {
+/**
+ * Everything under the page header, driven entirely by `data`. Also renders a
+ * friend's profile: the same charts, without the tasks they never share.
+ */
+export function AnalyticsView({
+  data,
+  basePath = "/analytics",
+  perspective = "self",
+}: {
+  data: AnalyticsData;
+  basePath?: string;
+  perspective?: Perspective;
+}) {
+  const isSelf = perspective === "self";
   const { kpis, streaks, trend } = data;
   const rangeLabel = ANALYTICS_RANGES[data.rangeKey].label.toLowerCase();
 
@@ -29,7 +41,7 @@ export function AnalyticsView({ data }: { data: AnalyticsData }) {
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <RangeFilter current={data.rangeKey} />
+        <RangeFilter current={data.rangeKey} basePath={basePath} />
         <p className="text-muted-foreground text-xs">
           {data.timeZone.replace(/_/g, " ")} · {dayStartNote}
         </p>
@@ -39,7 +51,11 @@ export function AnalyticsView({ data }: { data: AnalyticsData }) {
         <EmptyState
           icon={ChartNoAxesColumn}
           title={`Nothing logged in the last ${rangeLabel}`}
-          description="Start a timer from Tracks, or pick a longer range. Finished sessions show up here; one that is still running joins in when you finish it."
+          description={
+            isSelf
+              ? "Start a timer from Tracks, or pick a longer range. Finished sessions show up here; one that is still running joins in when you finish it."
+              : "No finished sessions in this range. Try a longer one."
+          }
         />
       ) : (
         <div className="space-y-4">
@@ -116,7 +132,7 @@ export function AnalyticsView({ data }: { data: AnalyticsData }) {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel
-              title="When you focus"
+              title={isSelf ? "When you focus" : "When they focus"}
               description={
                 data.peak
                   ? `Peak window ${formatHour(data.peak.startHour)}–${formatHour(data.peak.endHour)}, highlighted.`
@@ -147,7 +163,7 @@ export function AnalyticsView({ data }: { data: AnalyticsData }) {
             />
           </Panel>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={isSelf ? "grid gap-4 lg:grid-cols-2" : "grid gap-4"}>
             <Panel
               title="Session lengths"
               description="Many short sessions, or a few long ones?"
@@ -160,9 +176,11 @@ export function AnalyticsView({ data }: { data: AnalyticsData }) {
               />
             </Panel>
 
-            <Panel title="Tasks" description={`Finished and added in the last ${rangeLabel}.`}>
-              <TaskSummary stats={data.tasks} />
-            </Panel>
+            {isSelf ? (
+              <Panel title="Tasks" description={`Finished and added in the last ${rangeLabel}.`}>
+                <TaskSummary stats={data.tasks} />
+              </Panel>
+            ) : null}
           </div>
         </div>
       )}

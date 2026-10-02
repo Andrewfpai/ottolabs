@@ -2,7 +2,7 @@
  * The whole analytics page as one pure function of rows and settings, so it
  * can be tested and previewed without a database or a signed-in user.
  */
-import { buildInsights, type Insight } from "@/features/analytics/lib/insights";
+import { buildInsights, type Insight, type Perspective } from "@/features/analytics/lib/insights";
 import {
   type DayPoint,
   type DayRange,
@@ -108,6 +108,8 @@ export function computeAnalytics(input: {
   sessions: readonly SplittableSession[];
   tracks: readonly { id: string; title: string; color: string }[];
   tasks: readonly TaskLike[];
+  /** Whose analytics these are, for the wording of the insights. */
+  perspective?: Perspective;
 }): AnalyticsData {
   const { rangeKey, settings, now, sessions } = input;
   const { timeZone, dayStartHour, weekStartsOn } = settings;
@@ -152,6 +154,7 @@ export function computeAnalytics(input: {
       medianSessionMs: median,
       topTracks: tracks,
       streaks: streakCounts,
+      perspective: input.perspective,
     }),
     trend:
       rangeKey === "1y"

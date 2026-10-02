@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { DEFAULT_POMODORO } from "@/db/schema";
 import { AccessManager } from "@/features/access/components/access-manager";
 import { getAccessList } from "@/features/access/server/queries";
+import { SharingToggles } from "@/features/friends/components/sharing-toggles";
+import { getMySharing } from "@/features/friends/server/queries";
 import { SettingsForm } from "@/features/settings/components/settings-form";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
 
@@ -42,10 +44,11 @@ function supportedTimeZones(current: string): string[] {
 }
 
 export default async function SettingsPage() {
-  const [user, settings, access] = await Promise.all([
+  const [user, settings, access, sharing] = await Promise.all([
     requireUser(),
     requireSettings(),
     getAccessList(),
+    getMySharing(),
   ]);
   const pomodoro = settings.defaultPomodoro ?? DEFAULT_POMODORO;
 
@@ -68,6 +71,20 @@ export default async function SettingsPage() {
         }}
         timeZones={supportedTimeZones(settings.timezone)}
       />
+
+      <section
+        id="sharing"
+        aria-labelledby="sharing-heading"
+        className="bg-card mt-6 scroll-mt-20 rounded-xl border p-4 sm:p-6"
+      >
+        <h2 id="sharing-heading" className="text-sm font-medium">
+          Sharing with friends
+        </h2>
+        <p className="text-muted-foreground mt-1 mb-4 text-xs">
+          Applies to everyone you are friends with. Changes take effect immediately.
+        </p>
+        <SharingToggles initial={sharing} />
+      </section>
 
       {access ? (
         <section aria-labelledby="access-heading" className="bg-card mt-6 rounded-xl border p-4 sm:p-6">
