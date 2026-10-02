@@ -105,3 +105,20 @@ export async function getTasksDueBetween(from: Date, to: Date): Promise<TaskWith
 
   return rows.map((row) => ({ ...row.task, track: row.track }));
 }
+
+/** The fields task statistics need, for every task the user has. */
+export async function getTasksForStats() {
+  const user = await requireUser();
+
+  return db
+    .select({
+      status: tasks.status,
+      priority: tasks.priority,
+      dueAt: tasks.dueAt,
+      isAllDay: tasks.isAllDay,
+      completedAt: tasks.completedAt,
+      createdAt: tasks.createdAt,
+    })
+    .from(tasks)
+    .where(eq(tasks.userId, user.id));
+}
