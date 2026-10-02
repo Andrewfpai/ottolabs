@@ -33,6 +33,7 @@ import {
   leaveRoom,
   removeMember,
   renameRoom,
+  setRoomGoal,
 } from "@/features/rooms/server/actions";
 
 type Person = { id: string; name: string; image: string | null };
@@ -57,16 +58,19 @@ function useAction() {
 export function RoomHeaderActions({
   roomId,
   name,
+  goal,
   isOwner,
 }: {
   roomId: string;
   name: string;
+  goal: string | null;
   isOwner: boolean;
 }) {
   const router = useRouter();
   const { pending, run } = useAction();
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(name);
+  const [goalDraft, setGoalDraft] = useState(goal ?? "");
   const [confirming, setConfirming] = useState(false);
 
   const leaveOrDelete = () =>
@@ -85,11 +89,12 @@ export function RoomHeaderActions({
           className="cursor-pointer gap-1.5"
           onClick={() => {
             setDraft(name);
+            setGoalDraft(goal ?? "");
             setRenaming(true);
           }}
         >
           <Pencil className="size-3.5" aria-hidden />
-          Rename
+          Edit
         </Button>
       ) : null}
       <Button variant="outline" size="sm" className="cursor-pointer gap-1.5" onClick={() => setConfirming(true)}>
@@ -108,12 +113,20 @@ export function RoomHeaderActions({
                 toast.error(check.error.issues[0]?.message ?? "Give the room a name.");
                 return;
               }
-              run(() => renameRoom({ roomId, name: check.data }), "Room renamed.", () => setRenaming(false));
+              run(
+                async () => {
+                  const renamed = await renameRoom({ roomId, name: check.data });
+                  if (!renamed.ok || goalDraft.trim() === (goal ?? "")) return renamed;
+                  return setRoomGoal({ roomId, goal: goalDraft });
+                },
+                "Room updated.",
+                () => setRenaming(false),
+              );
             }}
           >
             <DialogHeader>
-              <DialogTitle>Rename room</DialogTitle>
-              <DialogDescription>Everyone in the room sees the new name.</DialogDescription>
+              <DialogTitle>Edit room</DialogTitle>
+              <DialogDescription>Everyone in the room sees the name and goal.</DialogDescription>
             </DialogHeader>
             <Input
               aria-label="Room name"
@@ -121,6 +134,13 @@ export function RoomHeaderActions({
               onChange={(e) => setDraft(e.target.value)}
               maxLength={60}
               autoFocus
+            />
+            <Input
+              aria-label="Room goal"
+              placeholder="Goal, optional: Finish chapter 3"
+              value={goalDraft}
+              onChange={(e) => setGoalDraft(e.target.value)}
+              maxLength={120}
             />
             <DialogFooter>
               <Button type="button" variant="ghost" className="cursor-pointer" onClick={() => setRenaming(false)}>

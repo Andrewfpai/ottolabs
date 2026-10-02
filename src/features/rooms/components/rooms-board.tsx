@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { roomNameSchema } from "@/features/rooms/schema";
+import { JoinRoomForm } from "@/features/rooms/components/room-links";
 import { createRoom, joinRoom, leaveRoom } from "@/features/rooms/server/actions";
 import type { RoomSummary } from "@/features/rooms/server/queries";
 
@@ -21,6 +22,9 @@ export function RoomsBoard({ rooms }: { rooms: RoomSummary[] }) {
   return (
     <div className="space-y-6">
       <CreateRoom />
+      <section className="bg-card rounded-xl border p-4">
+        <JoinRoomForm />
+      </section>
 
       {invitations.length > 0 ? <Invitations rooms={invitations} /> : null}
 
@@ -70,6 +74,7 @@ export function RoomsBoard({ rooms }: { rooms: RoomSummary[] }) {
 function CreateRoom() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -82,12 +87,12 @@ function CreateRoom() {
       return;
     }
     startTransition(async () => {
-      const result = await createRoom({ name: check.data });
+      const result = await createRoom({ name: check.data, goal });
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      toast.success("Room created. Add friends to it.");
+      toast.success("Room created. Share its link or add friends.");
       router.push(`/rooms/${result.data}`);
     });
   }
@@ -103,6 +108,18 @@ function CreateRoom() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
+          />
+        </div>
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="room-goal">
+            Goal <span className="text-muted-foreground font-normal">optional</span>
+          </Label>
+          <Input
+            id="room-goal"
+            placeholder="Finish chapter 3"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            maxLength={120}
           />
         </div>
         <Button type="submit" className="cursor-pointer gap-1.5" disabled={pending || !name.trim()} aria-busy={pending}>

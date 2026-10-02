@@ -20,6 +20,7 @@ import {
 import { displayName, redactTrackTitles } from "@/features/friends/lib/sharing";
 import { userPicture } from "@/features/friends/server/picture";
 import { MAX_ROOM_MEMBERS, type MemberState, memberState, roomTotals } from "@/features/rooms/lib/room";
+import { parseRoomCode } from "@/features/rooms/lib/invite-code";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
 
@@ -239,7 +240,7 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
 }
 
 export type RoomPage = {
-  room: { id: string; name: string };
+  room: { id: string; name: string; goal: string | null };
   isOwner: boolean;
   live: RoomLive;
   /** Owner only: people invited who have not joined yet. */
@@ -289,7 +290,7 @@ export async function getRoomPage(roomId: string): Promise<RoomPage | null> {
   }
 
   return {
-    room: { id: membership.room.id, name: membership.room.name },
+    room: { id: membership.room.id, name: membership.room.name, goal: membership.room.goal },
     isOwner: membership.isOwner,
     live,
     invited,
@@ -298,3 +299,55 @@ export async function getRoomPage(roomId: string): Promise<RoomPage | null> {
   };
 }
 
+
+export type RoomInvite = {
+  id: string;
+  name: string;
+  goal: string | null;
+  ownerName: string;
+  memberCount: number;
+  alreadyJoined: boolean;
+};
+
+/** The room behind an invite link, for the join page. Null if the link is dead or the room is full. */
+export async function getRoomInvite(code: string): Promise<RoomInvite | null> {
+  const me = await requireUser();
+  if (!parseRoomCode(code)) return null;
+  const [room] = await db
+    .select({ id: studyRooms.id, name: studyRooms.name, goal: studyRooms.goal, ownerName: users.name, ownerEmail: users.email })
+    .from(studyRooms)
+    .innerJoin(users, eq(users.id, studyRooms.ownerId))
+    .where(eq(studyRooms.inviteCode, code))
+    .limit(1);
+  if (!room) return null;
+
+  const members = await db
+    .select({ userId: roomMembers.userId, status: roomMembers.status })
+    .from(roomMembers)
+    .where(eq(roomMembers.roomId, room.id));
+  const mine = members.find((m) => m.userId === me.id);
+  if (!mine && members.length >= MAX_ROOM_MEMBERS) return null;
+
+  return {
+    id: room.id,
+    name: room.name,
+    goal: room.goal,
+    ownerName: displayName({ name: room.ownerName, email: room.ownerEmail }),
+    memberCount: members.filter((m) => m.status === "joined").length,
+    alreadyJoined: mine?.status === "joined",
+  };
+}
+
+export type MyRoom = { id: string; name: string; goal: string | null; isOwner: boolean };
+
+/** Rooms you have joined, for the focus screen's Study together panel. */
+export async function getMyRooms(): Promise<MyRoom[]> {
+  const me = await requireUser();
+  const rows = await db
+    .select({ id: studyRooms.id, name: studyRooms.name, goal: studyRooms.goal, ownerId: studyRooms.ownerId })
+    .from(roomMembers)
+    .innerJoin(studyRooms, eq(studyRooms.id, roomMembers.roomId))
+    .where(and(eq(roomMembers.userId, me.id), eq(roomMembers.status, "joined")))
+    .orderBy(asc(studyRooms.name));
+  return rows.map((r) => ({ id: r.id, name: r.name, goal: r.goal, isOwner: r.ownerId === me.id }));
+}

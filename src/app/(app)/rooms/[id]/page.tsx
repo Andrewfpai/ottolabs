@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-header";
 import { ManagePeople, RoomHeaderActions } from "@/features/rooms/components/room-admin";
+import { RoomInvite } from "@/features/rooms/components/room-links";
 import { RoomLive } from "@/features/rooms/components/room-live";
 import { RoomStart } from "@/features/rooms/components/room-start";
 import { getRoomPage } from "@/features/rooms/server/queries";
@@ -23,15 +24,22 @@ export default async function RoomPage({ params }: PageProps<"/rooms/[id]">) {
   return (
     <PageContainer className="max-w-3xl">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
-        <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words sm:text-3xl">
-          {page.room.name}
-        </h1>
-        <RoomHeaderActions roomId={page.room.id} name={page.room.name} isOwner={page.isOwner} />
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl">{page.room.name}</h1>
+          {page.room.goal ? <p className="text-muted-foreground mt-1 text-sm">Goal: {page.room.goal}</p> : null}
+        </div>
+        <RoomHeaderActions
+          roomId={page.room.id}
+          name={page.room.name}
+          goal={page.room.goal}
+          isOwner={page.isOwner}
+        />
       </div>
 
       <div className="space-y-4">
         <RoomStart roomId={page.room.id} tracks={tracks} />
         <RoomLive roomId={page.room.id} initial={page.live} />
+        {page.isOwner ? <RoomInvite roomId={page.room.id} /> : null}
         {page.isOwner ? (
           <ManagePeople
             roomId={page.room.id}
