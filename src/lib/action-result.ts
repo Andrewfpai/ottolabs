@@ -62,6 +62,11 @@ export function isForeignKeyViolation(error: unknown): boolean {
   return hasCode(error, "23503");
 }
 
+/** Postgres invalid_parameter_value — e.g. a time zone name it does not know. */
+export function isInvalidParameterValue(error: unknown): boolean {
+  return hasCode(error, "22023");
+}
+
 /** The name of the index a constraint violation came from. */
 export function violatedConstraint(error: unknown): string | null {
   return pgError(error)?.constraint ?? null;
