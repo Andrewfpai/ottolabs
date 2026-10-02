@@ -7,6 +7,8 @@ import { DEFAULT_POMODORO } from "@/db/schema";
 import { AccessManager } from "@/features/access/components/access-manager";
 import { getAccessList } from "@/features/access/server/queries";
 import { SharingToggles } from "@/features/friends/components/sharing-toggles";
+import { ReminderSettings } from "@/features/reminders/components/reminder-settings";
+import { getReminderSettings } from "@/features/reminders/server/queries";
 import { PomodoroAlertSettings } from "@/features/sessions/components/pomodoro-alert-settings";
 import { getMySharing } from "@/features/friends/server/queries";
 import { DeleteAccount } from "@/features/settings/components/delete-account";
@@ -47,11 +49,12 @@ function supportedTimeZones(current: string): string[] {
 }
 
 export default async function SettingsPage() {
-  const [user, settings, access, sharing] = await Promise.all([
+  const [user, settings, access, sharing, reminders] = await Promise.all([
     requireUser(),
     requireSettings(),
     getAccessList(),
     getMySharing(),
+    getReminderSettings(),
   ]);
   const pomodoro = settings.defaultPomodoro ?? DEFAULT_POMODORO;
 
@@ -83,6 +86,20 @@ export default async function SettingsPage() {
           Saved in this browser, so your laptop and phone can differ.
         </p>
         <PomodoroAlertSettings />
+      </section>
+
+      <section
+        id="reminders"
+        aria-labelledby="reminders-heading"
+        className="bg-card mt-6 scroll-mt-20 rounded-xl border p-4 sm:p-6"
+      >
+        <h2 id="reminders-heading" className="text-sm font-medium">
+          Reminders
+        </h2>
+        <p className="text-muted-foreground mt-1 mb-4 text-xs">
+          Notifications on your phone or computer, even when OttoLabs is closed.
+        </p>
+        <ReminderSettings settings={reminders} />
       </section>
 
       <section

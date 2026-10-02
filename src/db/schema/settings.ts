@@ -47,6 +47,15 @@ export const userSettings = pgTable("user_settings", {
   shareTrackNames: boolean("share_track_names").notNull().default(false),
   /** On: friends see a "Studying now" badge while your timer runs. */
   shareLiveStatus: boolean("share_live_status").notNull().default(false),
+
+  // Push reminders, all off until you choose them. Delivered to every device
+  // you enabled notifications on.
+  /** Evening: tasks due tomorrow. */
+  remindDeadlines: boolean("remind_deadlines").notNull().default(false),
+  /** Evening: how far you are from today's daily goal, if you are short. */
+  remindDailyGoal: boolean("remind_daily_goal").notNull().default(false),
+  /** Instantly: someone in one of your rooms started focusing there. */
+  notifyRoomActivity: boolean("notify_room_activity").notNull().default(false),
 });
 
 export const userSettingsRelations = relations(userSettings, ({ one }) => ({

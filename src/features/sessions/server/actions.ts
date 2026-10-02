@@ -2,6 +2,7 @@
 
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { db } from "@/db";
 import { DEFAULT_POMODORO, focusSessions, tracks } from "@/db/schema";
@@ -34,6 +35,7 @@ import {
   ok,
   violatedConstraint,
 } from "@/lib/action-result";
+import { notifyRoomStart } from "@/features/reminders/server/push";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireUser } from "@/lib/auth-guard";
 import { elapsedMs } from "@/lib/time/elapsed";
@@ -93,7 +95,11 @@ export async function startSession(
     });
 
     revalidatePath("/tracks");
-    if (roomId) revalidatePath(`/rooms/${roomId}`);
+    if (roomId) {
+      revalidatePath(`/rooms/${roomId}`);
+      // Room alerts go out after the response, so they never slow Start down.
+      after(() => notifyRoomStart(roomId, user.id));
+    }
     return ok({
       ...created,
       track: {

@@ -1,6 +1,7 @@
 export * from "./access";
 export * from "./auth";
 export * from "./friends";
+export * from "./push";
 export * from "./rooms";
 export * from "./tracks";
 export * from "./sessions";

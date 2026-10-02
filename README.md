@@ -211,6 +211,20 @@ in a row, which made every click take 1–2 s. If the database ever moves, move
 `revalidatePath`, which clears the affected page, so your own changes always
 show; changes from another device can take up to 30 s.
 
+## Alerts and reminders
+
+- **Pomodoro bell and notification** come from the open page: one precise
+  timeout per phase (`usePomodoroAlerts`), ringing in a background tab too.
+  Preferences are per device. Transitions still wait for a visible tab.
+- **Reminders** are server-sent Web Push, so they arrive with the app closed:
+  deadlines tomorrow and the daily-goal gap from `/api/cron/reminders` (daily
+  at 12:00 UTC, each person only on their local evening), and room activity
+  sent via `after()` when someone starts in a room. `reminder_log` makes each
+  one at-most-once. Needs `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
+  and `VAPID_SUBJECT` (`npx web-push generate-vapid-keys`).
+- `public/sw.js` only shows notifications. No fetch handler, no cache.
+- iPhone and iPad receive push only from the Home Screen app (iOS 16.4+).
+
 ## The stale-session reaper
 
 A timer whose heartbeat has been silent for 30 minutes is closed **at its last

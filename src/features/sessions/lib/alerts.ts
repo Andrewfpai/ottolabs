@@ -152,7 +152,7 @@ export function notificationState(): NotificationState {
  * `Notification` constructor throws there), so every platform goes through
  * one. It handles notifications only — no fetch handler, no offline cache.
  */
-async function notificationWorker(): Promise<ServiceWorkerRegistration | null> {
+export async function notificationWorker(): Promise<ServiceWorkerRegistration | null> {
   if (notificationState() === "unsupported") return null;
   try {
     await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
@@ -180,7 +180,6 @@ export async function showNotification(message: { title: string; body: string },
       tag,
       icon: "/icon/192",
       badge: "/icon/192",
-      data: { url: "/dashboard" },
     });
   } catch {
     // Permission revoked between the check and the call.
