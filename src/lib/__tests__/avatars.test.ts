@@ -24,5 +24,6 @@ describe("avatar pictures", () => {
     const ids = ANIMAL_AVATARS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining(["axolotl", "piglet", "hamster"]));
+    expect(ids).toEqual(expect.arrayContaining(["puppy", "corgi", "koala", "seal", "redpanda"]));
   });
 });

@@ -14,6 +14,11 @@ export const ANIMAL_AVATARS = [
   { id: "fox", label: "Fox" },
   { id: "chick", label: "Chick" },
   { id: "penguin", label: "Penguin" },
+  { id: "puppy", label: "Puppy" },
+  { id: "corgi", label: "Corgi" },
+  { id: "koala", label: "Koala" },
+  { id: "seal", label: "Seal pup" },
+  { id: "redpanda", label: "Red panda" },
   // The pink set.
   { id: "axolotl", label: "Axolotl" },
   { id: "piglet", label: "Piglet" },

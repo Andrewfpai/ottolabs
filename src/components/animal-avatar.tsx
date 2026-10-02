@@ -26,6 +26,19 @@ const blush = (y: number, x = 18, color = BLUSH) => (
   </>
 );
 
+/** Big glossy eyes with two catch-lights: the newer, cuter set uses these. */
+const sparkleEyes = (y: number, gap = 11, r = 5) => (
+  <>
+    {[50 - gap, 50 + gap].map((x) => (
+      <g key={x}>
+        <circle cx={x} cy={y} r={r} fill={INK} />
+        <circle cx={x - r * 0.35} cy={y - r * 0.4} r={r * 0.38} fill="#FFFFFF" />
+        <circle cx={x + r * 0.35} cy={y + r * 0.3} r={r * 0.18} fill="#FFFFFF" />
+      </g>
+    ))}
+  </>
+);
+
 const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
   cat: {
     bg: "#FAECE7",
@@ -137,6 +150,108 @@ const DRAWINGS: Record<AnimalAvatarId, { bg: string; art: ReactNode }> = {
         {eyes(55, 9)}
         <path d="M45 62 L55 62 L50 68 Z" fill="#EF9F27" />
         {blush(66, 16)}
+      </>
+    ),
+  },
+  puppy: {
+    bg: "#FFF1D6",
+    art: (
+      <>
+        {/* Floppy ears, a tongue out and a red bandana. */}
+        <ellipse cx="25" cy="52" rx="10" ry="19" fill="#B97A3E" transform="rotate(18 25 52)" />
+        <ellipse cx="75" cy="52" rx="10" ry="19" fill="#B97A3E" transform="rotate(-18 75 52)" />
+        <circle cx="50" cy="53" r="26" fill="#EBB574" />
+        <ellipse cx="50" cy="64" rx="14" ry="10.5" fill="#FFF4E6" />
+        {sparkleEyes(51, 11, 4.8)}
+        <ellipse cx="50" cy="69.5" rx="3.6" ry="4.6" fill="#F07A93" />
+        <ellipse cx="50" cy="60" rx="4.6" ry="3.3" fill={INK} />
+        <path d="M50 63 Q46.5 68 43 65 M50 63 Q53.5 68 57 65" stroke={INK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        {blush(63, 19)}
+        <path d="M29 76 Q50 85 71 76 L50 95 Z" fill="#E24B4A" />
+        <circle cx="42" cy="82" r="1.6" fill="#FFFFFF" />
+        <circle cx="55" cy="83" r="1.6" fill="#FFFFFF" />
+        <circle cx="49" cy="89" r="1.6" fill="#FFFFFF" />
+      </>
+    ),
+  },
+  corgi: {
+    bg: "#E3F0E8",
+    art: (
+      <>
+        {/* Huge ears, a white blaze and a little heart. */}
+        <path d="M21 48 L23 11 L45 32 Z M79 48 L77 11 L55 32 Z" fill="#E8913F" strokeLinejoin="round" />
+        <path d="M27 40 L28 21 L39 32 Z M73 40 L72 21 L61 32 Z" fill="#FFE3C7" />
+        <circle cx="50" cy="58" r="27" fill="#E8913F" />
+        <path d="M50 33 Q44 48 39 60 Q36 76 50 80 Q64 76 61 60 Q56 48 50 33 Z" fill="#FFFFFF" />
+        <ellipse cx="50" cy="69" rx="15" ry="11" fill="#FFFFFF" />
+        {sparkleEyes(55, 13, 4.6)}
+        <ellipse cx="50" cy="64" rx="4.4" ry="3.2" fill={INK} />
+        <ellipse cx="50" cy="72.5" rx="3.2" ry="4" fill="#F07A93" />
+        <path d="M50 67 Q46.5 71.5 43.5 68.5 M50 67 Q53.5 71.5 56.5 68.5" stroke={INK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        {blush(68, 21)}
+        <path d="M81 28 C73 22 74 13 81 17.5 C88 13 89 22 81 28 Z" fill="#E24B4A" />
+      </>
+    ),
+  },
+  koala: {
+    bg: "#E8EEF4",
+    art: (
+      <>
+        {/* Fluffy ears, a big button nose and a leaf to wear. */}
+        <circle cx="24" cy="42" r="15" fill="#9AA5B1" />
+        <circle cx="76" cy="42" r="15" fill="#9AA5B1" />
+        <circle cx="24" cy="42" r="8.5" fill="#E2D3D8" />
+        <circle cx="76" cy="42" r="8.5" fill="#E2D3D8" />
+        <circle cx="50" cy="59" r="27" fill="#B3BCC6" />
+        {sparkleEyes(55, 14, 4.4)}
+        <ellipse cx="50" cy="64" rx="7.5" ry="9.5" fill="#3D4451" />
+        <ellipse cx="47.5" cy="60" rx="2" ry="3" fill="#6B7380" />
+        <path d="M45 76 Q50 79 55 76" stroke={INK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        {blush(68, 20)}
+        <path d="M50 34 Q59 21 72 26 Q62 37 50 34 Z" fill="#86C26A" />
+        <path d="M51 33 Q60 28 69 27" stroke="#3B6D11" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+      </>
+    ),
+  },
+  seal: {
+    bg: "#D4ECF5",
+    art: (
+      <>
+        {/* A round snow-white pup with huge eyes and whisker dots. */}
+        <ellipse cx="50" cy="58" rx="31" ry="28" fill="#FFFFFF" />
+        {sparkleEyes(53, 13, 6)}
+        <ellipse cx="44.5" cy="66" rx="6.5" ry="5" fill="#EEF3F6" />
+        <ellipse cx="55.5" cy="66" rx="6.5" ry="5" fill="#EEF3F6" />
+        <g fill="#B4B2A9">
+          <circle cx="41" cy="65" r="0.9" />
+          <circle cx="44" cy="68" r="0.9" />
+          <circle cx="59" cy="65" r="0.9" />
+          <circle cx="56" cy="68" r="0.9" />
+        </g>
+        <ellipse cx="50" cy="62" rx="3.8" ry="2.7" fill={INK} />
+        <path d="M47.5 69 Q50 71.5 52.5 69" stroke={INK} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        {blush(65, 23)}
+        <path d="M80 20 L82 26 L88 28 L82 30 L80 36 L78 30 L72 28 L78 26 Z" fill="#85B7EB" />
+        <path d="M20 22 L21 25 L24 26 L21 27 L20 30 L19 27 L16 26 L19 25 Z" fill="#85B7EB" />
+      </>
+    ),
+  },
+  redpanda: {
+    bg: "#F3EAD8",
+    art: (
+      <>
+        {/* White-tipped ears, eyebrow spots and tear marks. */}
+        <path d="M21 46 Q17 20 41 29 Z M79 46 Q83 20 59 29 Z" fill="#B9502A" />
+        <path d="M26 39 Q24 26 36 30 Z M74 39 Q76 26 64 30 Z" fill="#FFF8F0" />
+        <circle cx="50" cy="58" r="28" fill="#D2642F" />
+        <path d="M23 61 Q36 58 50 70 Q64 58 77 61 Q73 85 50 86 Q27 85 23 61 Z" fill="#FFF8F0" />
+        <ellipse cx="37" cy="43" rx="5.5" ry="3.2" fill="#FFF8F0" />
+        <ellipse cx="63" cy="43" rx="5.5" ry="3.2" fill="#FFF8F0" />
+        <path d="M36 58 Q33 66 37 72 M64 58 Q67 66 63 72" stroke="#A8461F" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+        {sparkleEyes(53, 13, 4.6)}
+        <ellipse cx="50" cy="67" rx="4" ry="3" fill={INK} />
+        <path d="M50 70 Q47 73.5 44.5 71.5 M50 70 Q53 73.5 55.5 71.5" stroke={INK} strokeWidth="1.7" fill="none" strokeLinecap="round" />
+        {blush(73, 17)}
       </>
     ),
   },

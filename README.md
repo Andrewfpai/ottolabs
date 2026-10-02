@@ -183,7 +183,7 @@ and the manifest lives in `src/app/manifest.ts`.
 **Friends** are mutual: a request has to be accepted before either side sees
 anything. Add someone by **username** (`users.username`, chosen in Settings,
 lowercase letters, digits and underscores) or by email. Everyone can also pick one of
-11 built-in animal **avatars** (hand-drawn SVG in `components/animal-avatar.tsx`,
+16 built-in animal **avatars** (hand-drawn SVG in `components/animal-avatar.tsx`,
 stored as an id in `users.avatar`) instead of their Google photo. A friend's profile is the Analytics page computed on their sessions,
 in their time zone. **Study rooms** are small groups (up to 12) who see each
 other's live timers; the owner adds friends, and joining is the consent to be
