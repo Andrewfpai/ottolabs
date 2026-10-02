@@ -198,6 +198,19 @@ exists. Rooms poll `/api/rooms/[id]/live` every 10 seconds — Vercel functions
 cannot hold the sockets real-time would need — while minutes tick locally from
 timestamps.
 
+## Speed: keep the server next to the database
+
+`vercel.json` pins functions to Singapore (`sin1`), next to the Neon database
+(`ap-southeast-1`). Vercel's default is Washington D.C.; from there every
+database round trip crosses the world (~220 ms), and a page needs about seven
+in a row, which made every click take 1–2 s. If the database ever moves, move
+`regions` with it.
+
+`next.config.ts` also keeps visited pages in the browser for 30 seconds
+(`staleTimes.dynamic`), so going back and forth is instant. Every save calls
+`revalidatePath`, which clears the affected page, so your own changes always
+show; changes from another device can take up to 30 s.
+
 ## The stale-session reaper
 
 A timer whose heartbeat has been silent for 30 minutes is closed **at its last
