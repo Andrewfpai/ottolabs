@@ -34,7 +34,9 @@ export const trackFormSchema = z.object({
     .string()
     .trim()
     .max(280, "Keep it under 280 characters")
-    .optional()
+    // nullish, not optional: the schema's own output turns "" into null, and
+    // that output must parse again on the server.
+    .nullish()
     .transform((value) => (value ? value : null)),
   color: z.enum(TRACK_COLORS),
   icon: z.enum(TRACK_ICONS),

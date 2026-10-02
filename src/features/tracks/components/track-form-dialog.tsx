@@ -56,14 +56,17 @@ export function TrackFormDialog({
   function submit() {
     setError(null);
 
-    const parsed = trackFormSchema.safeParse({
+    const fields = {
       title,
       description,
       color,
       icon,
       targetMinutesPerWeek: track?.targetMinutesPerWeek ?? null,
-    });
+    };
 
+    // Checked here for an instant message, but the raw fields are what is
+    // sent: the server parses them itself rather than trusting our output.
+    const parsed = trackFormSchema.safeParse(fields);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check those values.");
       return;
@@ -71,8 +74,8 @@ export function TrackFormDialog({
 
     startTransition(async () => {
       const result = isEdit
-        ? await updateTrack({ ...parsed.data, id: track!.id })
-        : await createTrack(parsed.data);
+        ? await updateTrack({ ...fields, id: track!.id })
+        : await createTrack(fields);
 
       if (!result.ok) {
         // Shown inline rather than as a toast: it is a problem with the field

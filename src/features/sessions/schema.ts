@@ -24,7 +24,7 @@ export const finishSessionSchema = z.object({
     .string()
     .trim()
     .max(2000, "Keep the note under 2000 characters")
-    .optional()
+    .nullish()
     .transform((value) => (value ? value : null)),
   tags: tagsSchema.default([]),
 });
@@ -58,7 +58,7 @@ export const manualSessionSchema = z
       .string()
       .trim()
       .max(2000)
-      .optional()
+      .nullish()
       .transform((value) => (value ? value : null)),
     tags: tagsSchema.default([]),
   })
