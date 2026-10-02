@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { Track } from "@/db/schema";
+import { TagInput } from "@/features/sessions/components/tag-input";
+import { useMyTags } from "@/features/sessions/hooks/use-my-tags";
 import {
   createManualSession,
   updateSession,
@@ -71,6 +73,8 @@ export function SessionFormDialog({
     toDateTimeLocal(session?.endedAt ?? defaultEnd),
   );
   const [note, setNote] = useState(session?.note ?? "");
+  const [tags, setTags] = useState<string[]>(session?.tags ?? []);
+  const suggestions = useMyTags(open);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -88,6 +92,7 @@ export function SessionFormDialog({
         startedAt: start,
         endedAt: end,
         note,
+        tags,
       };
 
       const result = isEdit
@@ -190,6 +195,13 @@ export function SessionFormDialog({
               maxLength={2000}
               placeholder="What did you work through?"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="session-form-tags">
+              Tags <span className="text-muted-foreground font-normal">optional</span>
+            </Label>
+            <TagInput id="session-form-tags" value={tags} onChange={setTags} suggestions={suggestions} />
           </div>
 
           {error ? (

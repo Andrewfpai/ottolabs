@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -36,6 +36,7 @@ import {
 } from "@/lib/action-result";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireUser } from "@/lib/auth-guard";
+import { elapsedMs } from "@/lib/time/elapsed";
 import { requireSettings } from "@/lib/auth-guard";
 
 /**
@@ -208,6 +209,7 @@ export async function finishSession(
     user.id,
     parsed.data.id,
     parsed.data.note,
+    parsed.data.tags,
   );
 
   if (!finished) {
@@ -216,12 +218,8 @@ export async function finishSession(
 
   revalidateSessionViews();
 
-  const elapsed =
-    finished.endedAt!.getTime() -
-    finished.startedAt.getTime() -
-    finished.pausedMs;
-
-  return ok({ id: finished.id, elapsedMs: Math.max(0, elapsed) });
+  // elapsed.ts is the only place focus time is computed.
+  return ok({ id: finished.id, elapsedMs: elapsedMs(finished) });
 }
 
 /**
@@ -279,6 +277,7 @@ export async function createManualSession(
       startedAt: parsed.data.startedAt,
       endedAt: parsed.data.endedAt,
       note: parsed.data.note,
+      tags: parsed.data.tags,
       endReason: "manual_entry",
     })
     .returning({ id: focusSessions.id });
@@ -303,6 +302,17 @@ export async function updateSession(input: unknown): Promise<ActionResult> {
   if (!existing) return fail("That session no longer exists.", "NOT_FOUND");
   if (!existing.endedAt) {
     return fail("Stop the timer before editing this session.", "STILL_RUNNING");
+  }
+
+  // The new track id comes from the client. Without this check a session
+  // could be moved onto another user's track, inflating their totals and
+  // blocking them from deleting it.
+  if (changes.trackId && changes.trackId !== existing.trackId) {
+    const owned = await db.query.tracks.findFirst({
+      where: and(eq(tracks.id, changes.trackId), eq(tracks.userId, user.id)),
+      columns: { id: true },
+    });
+    if (!owned) return fail("That track no longer exists.", "NOT_FOUND");
   }
 
   const startedAt = changes.startedAt ?? existing.startedAt;
@@ -337,6 +347,7 @@ export async function updateSession(input: unknown): Promise<ActionResult> {
       endedAt,
       pausedMs,
       ...(changes.note !== undefined ? { note: changes.note } : {}),
+      ...(changes.tags !== undefined ? { tags: changes.tags } : {}),
     })
     .where(and(eq(focusSessions.id, id), eq(focusSessions.userId, user.id)));
 
@@ -361,4 +372,23 @@ export async function deleteSession(input: unknown): Promise<ActionResult> {
 
   revalidateSessionViews();
   return ok(undefined);
+}
+
+/**
+ * Your tags, most used first, for suggestions while tagging. A Server Action
+ * rather than a query because the finish dialog lives in the timer bar on
+ * every page and asks for them only when it opens.
+ */
+export async function getMyTags(): Promise<string[]> {
+  const user = await requireUser();
+
+  const result = await db.execute<{ tag: string }>(sql`
+    select tag
+    from ${focusSessions}, unnest(${focusSessions.tags}) as tag
+    where ${focusSessions.userId} = ${user.id}
+    group by tag
+    order by count(*) desc, tag
+    limit 30
+  `);
+  return result.rows.map((r) => r.tag);
 }

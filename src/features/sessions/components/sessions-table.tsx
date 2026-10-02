@@ -210,9 +210,18 @@ export function SessionsTable({
                   <TableCell className="text-muted-foreground max-w-xs align-top text-sm">
                     {session.note ? (
                       <span className="line-clamp-2">{session.note}</span>
-                    ) : (
+                    ) : session.tags.length === 0 ? (
                       <span className="opacity-50">—</span>
-                    )}
+                    ) : null}
+                    {session.tags.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {session.tags.map((tag) => (
+                          <span key={tag} className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-xs">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </TableCell>
 
                   <TableCell className="align-top">

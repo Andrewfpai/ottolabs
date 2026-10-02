@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { TagInput } from "@/features/sessions/components/tag-input";
 import { useFinishSession } from "@/features/sessions/hooks/use-active-session";
+import { MY_TAGS_KEY, useMyTags } from "@/features/sessions/hooks/use-my-tags";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
 import { formatCompact, formatDuration } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
@@ -48,15 +51,20 @@ export function FinishSessionDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const finish = useFinishSession();
+  const queryClient = useQueryClient();
+  const suggestions = useMyTags(open);
 
   const colors = trackColorClasses(session.track.color);
 
   async function submit() {
     try {
-      const result = await finish.mutateAsync({ id: session.id, note });
+      const result = await finish.mutateAsync({ id: session.id, note, tags });
       toast.success(`Logged ${formatCompact(result.elapsedMs)} on ${session.track.title}.`);
+      if (tags.length > 0) void queryClient.invalidateQueries({ queryKey: MY_TAGS_KEY });
       setNote("");
+      setTags([]);
       onOpenChange(false);
     } catch {
       // useSessionMutation already surfaced the error as a toast.
@@ -107,6 +115,13 @@ export function FinishSessionDialog({
           <p className="text-muted-foreground text-xs">
             Optional. ⌘/Ctrl + Enter to save.
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="session-tags" className="text-sm font-medium">
+            Tags <span className="text-muted-foreground font-normal">optional</span>
+          </label>
+          <TagInput id="session-tags" value={tags} onChange={setTags} suggestions={suggestions} />
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">

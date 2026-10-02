@@ -160,6 +160,7 @@ export async function finishLiveSession(
   userId: string,
   id: string,
   note: string | null,
+  tags: string[] = [],
 ): Promise<FocusSession | null> {
   const [finished] = await db
     .update(focusSessions)
@@ -174,6 +175,7 @@ export async function finishLiveSession(
       breakStartedAt: null,
       endReason: "manual",
       note,
+      tags,
       lastHeartbeatAt: sql`now()`,
     })
     .where(

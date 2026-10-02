@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { MAX_TAGS, normalizeTags } from "@/features/sessions/lib/tags";
+
 export const startSessionSchema = z.object({
   trackId: z.uuid(),
   mode: z.enum(["stopwatch", "pomodoro"]).default("stopwatch"),
@@ -9,6 +11,13 @@ export const startSessionSchema = z.object({
 
 export const sessionIdSchema = z.object({ id: z.uuid() });
 
+/** Normalised first, then counted, so "Lecture" and "lecture" use one slot. */
+const tagsSchema = z
+  .array(z.string().max(100))
+  .max(20)
+  .transform(normalizeTags)
+  .refine((tags) => tags.length <= MAX_TAGS, `Use at most ${MAX_TAGS} tags`);
+
 export const finishSessionSchema = z.object({
   id: z.uuid(),
   note: z
@@ -17,6 +26,7 @@ export const finishSessionSchema = z.object({
     .max(2000, "Keep the note under 2000 characters")
     .optional()
     .transform((value) => (value ? value : null)),
+  tags: tagsSchema.default([]),
 });
 
 /**
@@ -50,6 +60,7 @@ export const manualSessionSchema = z
       .max(2000)
       .optional()
       .transform((value) => (value ? value : null)),
+    tags: tagsSchema.default([]),
   })
   .refine((v) => v.endedAt > v.startedAt, {
     message: "The end time has to be after the start time",
@@ -85,6 +96,8 @@ export const updateSessionSchema = z
       .nullable()
       .optional()
       .transform((value) => (value === undefined ? undefined : value || null)),
+    /** Omitted means "leave the tags as they are". */
+    tags: tagsSchema.optional(),
   })
   .refine(
     (v) => !v.startedAt || !v.endedAt || v.endedAt > v.startedAt,
