@@ -5,5 +5,6 @@ export * from "./push";
 export * from "./rooms";
 export * from "./tracks";
 export * from "./sessions";
+export * from "./study-plan";
 export * from "./tasks";
 export * from "./settings";

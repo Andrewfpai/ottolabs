@@ -10,6 +10,8 @@ import { AnalyticsView } from "@/features/analytics/components/analytics-view";
 import { StatTile } from "@/features/analytics/components/panels";
 import { parseRangeKey } from "@/features/analytics/lib/compute";
 import { sessionsHref } from "@/features/sessions/lib/filters";
+import { StudyPlan } from "@/features/study-plan/components/study-plan";
+import { getStudyPlan } from "@/features/study-plan/server/queries";
 import { TrackActions } from "@/features/tracks/components/track-actions";
 import { TrackNotes } from "@/features/tracks/components/track-notes";
 import { getTrackDetail, NOTES_PAGE_SIZE } from "@/features/tracks/server/queries";
@@ -33,6 +35,8 @@ export default async function TrackPage({ params, searchParams }: PageProps<"/tr
   if (!detail) notFound();
 
   const { track, analytics, weekMs, notes, notesTotal, openTasks } = detail;
+  // After the ownership check above; the plan only ever reads your own units.
+  const units = await getStudyPlan(track.id);
   const colors = trackColorClasses(track.color);
   const basePath = `/tracks/${track.id}`;
   const targetMs = track.targetMinutesPerWeek ? track.targetMinutesPerWeek * MINUTE_MS : null;
@@ -100,6 +104,10 @@ export default async function TrackPage({ params, searchParams }: PageProps<"/tr
               : "No weekly target set"
           }
         />
+      </div>
+
+      <div className="mb-6">
+        <StudyPlan trackId={track.id} label={track.unitLabel} units={units} />
       </div>
 
       <AnalyticsView data={analytics} basePath={basePath} scope="track" />

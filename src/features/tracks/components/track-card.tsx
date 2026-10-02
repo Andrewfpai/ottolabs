@@ -32,6 +32,7 @@ import {
   deleteTrack,
   unarchiveTrack,
 } from "@/features/tracks/server/actions";
+import { type PlanProgress, progressLabel } from "@/features/study-plan/lib/plan";
 import { formatCompact } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
@@ -48,10 +49,13 @@ function relativeDay(date: Date | null): string {
 
 export function TrackCard({
   track,
+  plan,
   onEdit,
   hasActiveSession,
 }: {
   track: TrackWithStats;
+  /** Study plan progress, when the track has a plan. */
+  plan?: PlanProgress;
   onEdit: (track: TrackWithStats) => void;
   hasActiveSession: boolean;
 }) {
@@ -181,6 +185,14 @@ export function TrackCard({
             {" · "}
             {relativeDay(track.lastActiveAt)}
           </p>
+          {plan && plan.total > 0 ? (
+            <div className="mt-2.5 w-36 max-w-full">
+              <p className="text-xs font-medium">{progressLabel(track.unitLabel, plan)}</p>
+              <div className={cn("mt-1 h-1 overflow-hidden rounded-full", colors.surface)} aria-hidden>
+                <div className={cn("h-full rounded-full", colors.bg)} style={{ width: `${(plan.done / plan.total) * 100}%` }} />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {!isArchived ? (

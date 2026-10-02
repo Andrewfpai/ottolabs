@@ -7,12 +7,20 @@ import { useState } from "react";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { useActiveSession } from "@/features/sessions/hooks/use-active-session";
+import type { PlanProgress } from "@/features/study-plan/lib/plan";
 import { TrackCard } from "@/features/tracks/components/track-card";
 import { TrackFormDialog } from "@/features/tracks/components/track-form-dialog";
 import type { TrackWithStats } from "@/features/tracks/server/queries";
 import { suggestTrackColor } from "@/lib/track-colors";
 
-export function TracksGrid({ tracks }: { tracks: TrackWithStats[] }) {
+export function TracksGrid({
+  tracks,
+  plans = {},
+}: {
+  tracks: TrackWithStats[];
+  /** Study plan progress by track id; tracks without a plan are absent. */
+  plans?: Record<string, PlanProgress>;
+}) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TrackWithStats | undefined>();
 
@@ -72,6 +80,7 @@ export function TracksGrid({ tracks }: { tracks: TrackWithStats[] }) {
             <TrackCard
               key={track.id}
               track={track}
+              plan={plans[track.id]}
               onEdit={openEdit}
               hasActiveSession={Boolean(active)}
             />
@@ -89,6 +98,7 @@ export function TracksGrid({ tracks }: { tracks: TrackWithStats[] }) {
               <TrackCard
                 key={track.id}
                 track={track}
+              plan={plans[track.id]}
                 onEdit={openEdit}
                 hasActiveSession={Boolean(active)}
               />
