@@ -28,6 +28,7 @@ export async function insertLiveSession(params: {
   trackId: string;
   mode: "stopwatch" | "pomodoro";
   pomodoroConfig: PomodoroConfig | null;
+  roomId?: string | null;
 }): Promise<FocusSession> {
   const [created] = await db
     .insert(focusSessions)
@@ -38,6 +39,7 @@ export async function insertLiveSession(params: {
       lastHeartbeatAt: sql`now()`,
       mode: params.mode,
       pomodoroConfig: params.pomodoroConfig,
+      roomId: params.roomId ?? null,
     })
     .returning();
 

@@ -34,6 +34,7 @@ import {
   ok,
   violatedConstraint,
 } from "@/lib/action-result";
+import { joinedRoom } from "@/features/rooms/server/check";
 import { requireUser } from "@/lib/auth-guard";
 import { requireSettings } from "@/lib/auth-guard";
 
@@ -69,12 +70,20 @@ export async function startSession(
     return fail("That track is archived. Restore it first.", "ARCHIVED");
   }
 
+  // The room id comes from the client: only a room the caller has joined may
+  // be credited with their time.
+  const roomId = parsed.data.roomId ?? null;
+  if (roomId && !(await joinedRoom(roomId, user.id))) {
+    return fail("You are not in that room any more.", "NOT_FOUND");
+  }
+
   const settings = await requireSettings();
 
   try {
     const created = await insertLiveSession({
       userId: user.id,
       trackId: track.id,
+      roomId,
       mode: parsed.data.mode,
       pomodoroConfig:
         parsed.data.mode === "pomodoro"
@@ -83,6 +92,7 @@ export async function startSession(
     });
 
     revalidatePath("/tracks");
+    if (roomId) revalidatePath(`/rooms/${roomId}`);
     return ok({
       ...created,
       track: {

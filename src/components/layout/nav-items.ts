@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   ChartNoAxesColumn,
+  DoorOpen,
   History,
   LayoutDashboard,
   Layers,
@@ -26,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: ChartNoAxesColumn },
   { href: "/friends", label: "Friends", icon: Users },
+  { href: "/rooms", label: "Rooms", icon: DoorOpen },
 ];
 
 export const SECONDARY_NAV_ITEMS: NavItem[] = [

@@ -25,6 +25,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
+import { studyRooms } from "./rooms";
 import { tracks } from "./tracks";
 
 export const sessionModeEnum = pgEnum("session_mode", ["stopwatch", "pomodoro"]);
@@ -87,6 +88,13 @@ export const focusSessions = pgTable(
     note: text("note"),
     tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
 
+    /**
+     * The study room the session was started in, if any — what makes "time
+     * focused together" countable. set null: deleting a room must not take
+     * anyone's history with it.
+     */
+    roomId: uuid("room_id").references(() => studyRooms.id, { onDelete: "set null" }),
+
     /** Updated ~every 60s while running. Drives the stale-session reaper. */
     lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true }),
     endReason: sessionEndReasonEnum("end_reason"),
@@ -104,6 +112,10 @@ export const focusSessions = pgTable(
 
     index("focus_sessions_user_started_idx").on(t.userId, t.startedAt.desc()),
     index("focus_sessions_track_started_idx").on(t.trackId, t.startedAt.desc()),
+    // Room totals scan a room's sessions by start time.
+    index("focus_sessions_room_started_idx")
+      .on(t.roomId, t.startedAt)
+      .where(sql`${t.roomId} is not null`),
     // Partial index the reaper cron scans every 15 minutes.
     index("focus_sessions_live_heartbeat_idx")
       .on(t.lastHeartbeatAt)

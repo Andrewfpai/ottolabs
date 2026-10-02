@@ -3,6 +3,8 @@ import { z } from "zod";
 export const startSessionSchema = z.object({
   trackId: z.uuid(),
   mode: z.enum(["stopwatch", "pomodoro"]).default("stopwatch"),
+  /** Started from inside a study room; counted toward that room's totals. */
+  roomId: z.uuid().optional(),
 });
 
 export const sessionIdSchema = z.object({ id: z.uuid() });

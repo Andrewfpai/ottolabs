@@ -171,6 +171,26 @@ and the manifest lives in `src/app/manifest.ts`.
   place: `TimerBar`, which the app shell mounts on every authenticated route.
   Two copies would race to make the same cycle transition.
 
+## Friends and study rooms
+
+**Friends** are mutual: a request has to be accepted before either side sees
+anything. A friend's profile is the Analytics page computed on their sessions,
+in their time zone. **Study rooms** are small groups (up to 12) who see each
+other's live timers; the owner adds friends, and joining is the consent to be
+seen. Sessions started from inside a room carry its `room_id`, which is what
+"time focused together" counts.
+
+What is ever shared: focus time, streaks, patterns, and — in rooms or with
+the live-status switch on — whether your timer is running, on which track and
+for how long. Track names only if you switch that on; otherwise "Track 1, 2…".
+**Never shared:** session notes, tags, tasks.
+
+Every friend and room read goes through one gate (`acceptedFriend`,
+`joinedRoom`); anything else is a 404 that does not confirm the person or room
+exists. Rooms poll `/api/rooms/[id]/live` every 10 seconds — Vercel functions
+cannot hold the sockets real-time would need — while minutes tick locally from
+timestamps.
+
 ## The stale-session reaper
 
 A timer whose heartbeat has been silent for 30 minutes is closed **at its last
