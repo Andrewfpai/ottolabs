@@ -82,6 +82,29 @@ export async function getTrackById(id: string): Promise<Track | null> {
   return track ?? null;
 }
 
+export type TrackOption = Pick<Track, "id" | "title" | "color" | "icon" | "status">;
+
+/**
+ * Every track, archived included, for pickers and filters. Callers decide
+ * whether to offer archived ones — a task already linked to an archived track
+ * still needs to show it.
+ */
+export async function getTrackOptions(): Promise<TrackOption[]> {
+  const user = await requireUser();
+
+  return db
+    .select({
+      id: tracks.id,
+      title: tracks.title,
+      color: tracks.color,
+      icon: tracks.icon,
+      status: tracks.status,
+    })
+    .from(tracks)
+    .where(eq(tracks.userId, user.id))
+    .orderBy(asc(tracks.sortOrder), asc(tracks.createdAt));
+}
+
 /** Tracks eligible to start a timer against, most recently used first. */
 export async function getStartableTracks(): Promise<Track[]> {
   const user = await requireUser();

@@ -15,7 +15,7 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full plan.
 | 0 | Scaffold, auth, schema, design tokens, seeder | ✅ done |
 | 1 | Tracks CRUD + timer engine + session log | ✅ done |
 | 2 | Focus mode, Pomodoro, idle-return prompt (heartbeat + reaper landed in Phase 1) | ✅ done |
-| 3 | Tasks + calendar | next |
+| 3 | Tasks + calendar | tasks ✅ · calendar next |
 | 4 | Analytics + goals | |
 | 5 | Polish, PWA, deploy | |
 | 1.1 | Google Calendar sync | deferred |
