@@ -70,7 +70,8 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile header */}
-        <header className="bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-3 backdrop-blur lg:hidden">
+        {/* Grows by the notch when installed on iOS, where the page runs under the status bar. */}
+        <header className="bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-2 border-b px-3 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button
@@ -82,7 +83,10 @@ export function AppShell({
                 <Menu className="size-5" aria-hidden />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="bg-sidebar flex w-64 flex-col gap-6 p-3">
+            <SheetContent
+              side="left"
+              className="bg-sidebar flex w-64 flex-col gap-6 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+            >
               <SheetHeader className="p-0">
                 <SheetTitle className="sr-only">Navigation</SheetTitle>
                 <div className="px-2 pt-2">

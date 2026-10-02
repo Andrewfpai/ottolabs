@@ -76,6 +76,19 @@ The `dev`, `build`, `start` and `db:seed` scripts set
 This requires **Node 24+** and is a no-op on machines with no proxy configured.
 If you invoke `next` directly rather than through npm, set it yourself.
 
+## Install it like an app
+
+Once deployed over HTTPS (or on `localhost`), the app is installable:
+
+- **iPhone / iPad:** open it in Safari → Share → **Add to Home Screen**.
+- **Android:** Chrome menu → **Install app**.
+- **Desktop Chrome / Edge:** the install icon at the right of the address bar.
+
+It opens on the dashboard in its own window. There is no offline mode on
+purpose: the timer depends on the server's clock and data, so a cached copy
+would only show stale numbers. Icons are drawn in code (`src/lib/brand-icon.tsx`)
+and the manifest lives in `src/app/manifest.ts`.
+
 ## Scripts
 
 | Command | What it does |

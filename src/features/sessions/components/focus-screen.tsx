@@ -113,7 +113,7 @@ export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
 
   if (!session) {
     return (
-      <div className="bg-background fixed inset-0 z-50 flex flex-col items-center justify-center p-6">
+      <div className="bg-background fixed inset-0 z-50 flex flex-col items-center justify-center p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <EmptyState
           icon={Play}
           title="Nothing is running"
@@ -131,7 +131,7 @@ export function FocusScreen({ initial }: { initial: SessionWithTrack | null }) {
   const colors = trackColorClasses(session.track.color);
 
   return (
-    <div className="bg-background fixed inset-0 z-50 flex flex-col">
+    <div className="bg-background fixed inset-0 z-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-between p-4">
         <span className="text-muted-foreground text-sm font-medium">
           Focus mode

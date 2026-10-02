@@ -266,7 +266,7 @@ export function TimerBar({ initial }: { initial: SessionWithTrack | null }) {
   return (
     <>
       {/* Keeps the last of the page's content clear of the floating bar. */}
-      {showBar ? <div aria-hidden className="h-24" /> : null}
+      {showBar ? <div aria-hidden className="h-[calc(6rem+env(safe-area-inset-bottom))]" /> : null}
 
       {/* Unmounted outright on `/focus` rather than exit-animated. An exit
           animation would keep this bar on screen while the fullscreen timer
@@ -281,7 +281,7 @@ export function TimerBar({ initial }: { initial: SessionWithTrack | null }) {
               animate={{ y: 0, opacity: 1 }}
               exit={reduceMotion ? { opacity: 0 } : { y: 80, opacity: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              className="fixed inset-x-0 bottom-4 z-40 mx-auto w-fit max-w-[calc(100vw-2rem)] px-4"
+              className="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 mx-auto w-fit max-w-[calc(100vw-2rem)] px-4"
             >
               <TimerBarInner session={session} phase={phase} />
             </motion.div>

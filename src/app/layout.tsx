@@ -34,6 +34,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Edge to edge, so the installed app can sit under a black-translucent iOS
+  // status bar. Everything pinned to an edge pads itself with
+  // env(safe-area-inset-*) to stay clear of the notch and home indicator.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fbfefd" },
     { media: "(prefers-color-scheme: dark)", color: "#0b1416" },
