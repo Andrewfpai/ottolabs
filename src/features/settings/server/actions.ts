@@ -5,9 +5,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { tasks, type UserSettings, userSettings } from "@/db/schema";
+import {
+  allowedEmails,
+  focusSessions,
+  tasks,
+  tracks,
+  type UserSettings,
+  userSettings,
+  users,
+} from "@/db/schema";
 import { settingsSchema, timezoneSchema } from "@/features/settings/schema";
 import { type ActionResult, fail, isInvalidParameterValue, ok } from "@/lib/action-result";
+import { isOwnerEmail, normalizeEmail } from "@/lib/access";
 import { requireUser } from "@/lib/auth-guard";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -131,4 +140,37 @@ export async function setDailyGoal(input: unknown): Promise<ActionResult<number>
   revalidatePath("/dashboard");
   revalidatePath("/settings");
   return ok(parsed.data.minutes);
+}
+
+const deleteAccountSchema = z.object({ confirmEmail: z.string().max(320) });
+
+/**
+ * Delete your account and everything in it, permanently.
+ *
+ * Typing your email is the confirmation. Sessions go first: they block their
+ * track's deletion on purpose (history must not vanish with a track), so the
+ * order is sessions, then tasks and tracks, then the user row, whose cascade
+ * takes logins, settings, friendships, room memberships and rooms you own.
+ * Your invitation goes too, so leaving means leaving. An owner listed in
+ * ALLOWED_EMAILS can still sign in again, which starts a fresh, empty account.
+ */
+export async function deleteMyAccount(input: unknown): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const parsed = deleteAccountSchema.safeParse(input);
+  if (!parsed.success || normalizeEmail(parsed.data.confirmEmail) !== normalizeEmail(user.email)) {
+    return fail("Type your email address exactly to confirm.");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(focusSessions).where(eq(focusSessions.userId, user.id));
+    await tx.delete(tasks).where(eq(tasks.userId, user.id));
+    await tx.delete(tracks).where(eq(tracks.userId, user.id));
+    if (!isOwnerEmail(user.email)) {
+      await tx.delete(allowedEmails).where(eq(allowedEmails.email, normalizeEmail(user.email)));
+    }
+    await tx.delete(users).where(eq(users.id, user.id));
+  });
+
+  return ok(undefined);
 }

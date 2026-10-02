@@ -23,6 +23,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   const message = errorCode
     ? (ERRORS[errorCode] ?? "Something went wrong signing in. Try again.")
     : null;
+  const deleted = params.deleted === "1";
 
   async function signInWithGoogle() {
     "use server";
@@ -53,6 +54,15 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
             className="border-destructive/30 bg-destructive/10 text-destructive mb-6 rounded-lg border px-4 py-3 text-sm"
           >
             {message}
+          </p>
+        ) : null}
+
+        {deleted && !message ? (
+          <p
+            role="status"
+            className="bg-muted text-foreground mb-6 rounded-lg border px-4 py-3 text-sm"
+          >
+            Your account and all its data were deleted.
           </p>
         ) : null}
 

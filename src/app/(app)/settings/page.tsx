@@ -8,7 +8,9 @@ import { AccessManager } from "@/features/access/components/access-manager";
 import { getAccessList } from "@/features/access/server/queries";
 import { SharingToggles } from "@/features/friends/components/sharing-toggles";
 import { getMySharing } from "@/features/friends/server/queries";
+import { DeleteAccount } from "@/features/settings/components/delete-account";
 import { SettingsForm } from "@/features/settings/components/settings-form";
+import { isOwnerEmail } from "@/lib/access";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -124,6 +126,20 @@ export default async function SettingsPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section
+        aria-labelledby="delete-heading"
+        className="border-destructive/30 mt-6 rounded-xl border p-4 sm:p-6"
+      >
+        <h2 id="delete-heading" className="text-sm font-medium">
+          Delete account
+        </h2>
+        <p className="text-muted-foreground mt-1 mb-4 text-xs">
+          Removes your account and all your data for good. Download a copy above first if you
+          want to keep it.
+        </p>
+        <DeleteAccount email={user.email} isOwner={isOwnerEmail(user.email)} />
       </section>
     </PageContainer>
   );
