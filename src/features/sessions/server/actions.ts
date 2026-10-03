@@ -54,7 +54,8 @@ import { requireSettings } from "@/lib/auth-guard";
 
 function revalidateSessionViews() {
   revalidatePath("/sessions");
-  revalidatePath("/tracks");
+  // "layout" so each track's own page (notes, totals) refreshes too.
+  revalidatePath("/tracks", "layout");
   revalidatePath("/dashboard");
   revalidatePath("/analytics");
   // The calendar's focus overlay reads sessions too.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -30,8 +31,9 @@ import {
   createManualSession,
   updateSession,
 } from "@/features/sessions/server/actions";
+import { DeleteSessionDialog } from "@/features/sessions/components/delete-session";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
-import { formatCompact } from "@/lib/time/elapsed";
+import { elapsedMs, formatCompact } from "@/lib/time/elapsed";
 
 /**
  * `datetime-local` speaks the browser's local time, and the app's stored zone
@@ -73,6 +75,7 @@ export function SessionFormDialog({
     toDateTimeLocal(session?.endedAt ?? defaultEnd),
   );
   const [note, setNote] = useState(session?.note ?? "");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [tags, setTags] = useState<string[]>(session?.tags ?? []);
   const suggestions = useMyTags(open);
   const [error, setError] = useState<string | null>(null);
@@ -215,6 +218,17 @@ export function SessionFormDialog({
         </div>
 
         <DialogFooter>
+          {session ? (
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive mr-auto cursor-pointer gap-1.5"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={pending}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              Delete
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             className="cursor-pointer"
@@ -233,6 +247,15 @@ export function SessionFormDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      {session ? (
+        <DeleteSessionDialog
+          sessionId={session.id}
+          summary={`${formatCompact(elapsedMs(session))} on ${session.track.title}`}
+          open={confirmingDelete}
+          onOpenChange={setConfirmingDelete}
+          onDeleted={() => onOpenChange(false)}
+        />
+      ) : null}
     </Dialog>
   );
 }

@@ -1,9 +1,7 @@
 "use client";
 
 import { History, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { TrackIcon } from "@/components/track-icon";
@@ -26,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import type { Track } from "@/db/schema";
 import { SessionFormDialog } from "@/features/sessions/components/session-form-dialog";
-import { deleteSession } from "@/features/sessions/server/actions";
+import { DeleteSessionDialog } from "@/features/sessions/components/delete-session";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
 import { dayKey, formatDayKey, timeOfDay } from "@/lib/time/calendar-day";
 import { elapsedMs, formatCompact } from "@/lib/time/elapsed";
@@ -54,10 +52,8 @@ export function SessionsTable({
   tracks: Track[];
   timeZone: string;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState<SessionWithTrack | undefined>();
   const [formOpen, setFormOpen] = useState(false);
-  const [, startTransition] = useTransition();
 
   function openCreate() {
     setEditing(undefined);
@@ -69,27 +65,27 @@ export function SessionsTable({
     setFormOpen(true);
   }
 
-  function remove(session: SessionWithTrack) {
-    startTransition(async () => {
-      const result = await deleteSession({ id: session.id });
-      if (result.ok) {
-        toast.success("Session deleted.");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
-    });
-  }
+  const [deleting, setDeleting] = useState<SessionWithTrack | null>(null);
 
   const dialog = (
-    <SessionFormDialog
-      // Remount per target so fields reset rather than carrying values over.
-      key={editing?.id ?? "manual"}
-      open={formOpen}
-      onOpenChange={setFormOpen}
-      tracks={tracks}
-      session={editing}
-    />
+    <>
+      <SessionFormDialog
+        // Remount per target so fields reset rather than carrying values over.
+        key={editing?.id ?? "manual"}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        tracks={tracks}
+        session={editing}
+      />
+      {deleting ? (
+        <DeleteSessionDialog
+          sessionId={deleting.id}
+          summary={`${formatCompact(elapsedMs(deleting))} on ${deleting.track.title}, ${formatWhen(deleting.startedAt, timeZone).day}`}
+          open
+          onOpenChange={(open) => !open && setDeleting(null)}
+        />
+      ) : null}
+    </>
   );
 
   if (sessions.length === 0) {
@@ -237,7 +233,8 @@ export function SessionsTable({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-muted-foreground size-8 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                          // Hidden until hover on a mouse; always there on touch screens, which cannot hover.
+                          className="text-muted-foreground size-8 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 max-sm:opacity-100 [@media(hover:none)]:opacity-100"
                           aria-label="Session actions"
                         >
                           <MoreVertical className="size-4" aria-hidden />
@@ -254,7 +251,7 @@ export function SessionsTable({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive cursor-pointer gap-2"
-                          onSelect={() => remove(session)}
+                          onSelect={() => setDeleting(session)}
                         >
                           <Trash2 className="size-4" aria-hidden />
                           Delete

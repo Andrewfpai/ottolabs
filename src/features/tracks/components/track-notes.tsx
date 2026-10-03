@@ -2,6 +2,7 @@ import { NotebookPen } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { DeleteSessionButton } from "@/features/sessions/components/delete-session";
 import type { TrackNote } from "@/features/tracks/server/queries";
 import { dayKey, formatDayKey, timeOfDay } from "@/lib/time/calendar-day";
 import { elapsedMs, formatCompact } from "@/lib/time/elapsed";
@@ -48,7 +49,8 @@ export function TrackNotes({
           {notes.map((note) => {
             const key = dayKey(note.startedAt, timeZone);
             return (
-              <li key={note.id} className="px-4 py-3 sm:px-5">
+              <li key={note.id} className="flex gap-2 px-4 py-3 sm:px-5">
+                <div className="min-w-0 flex-1">
                 <div className="text-muted-foreground flex flex-wrap items-baseline gap-x-2 text-xs">
                   <span className="text-foreground font-medium">
                     {formatDayKey(key, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
@@ -69,6 +71,11 @@ export function TrackNotes({
                     ))}
                   </div>
                 ) : null}
+                </div>
+                <DeleteSessionButton
+                  sessionId={note.id}
+                  summary={`${formatCompact(elapsedMs(note))} on ${formatDayKey(key, { weekday: "short", day: "numeric", month: "short" })}`}
+                />
               </li>
             );
           })}
