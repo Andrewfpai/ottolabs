@@ -14,7 +14,7 @@
  * that neighbours stay distinct for colour-blind readers. Change both together
  * and re-run the palette checker.
  */
-export const TRACK_COLORS = [
+export const BRIGHT_TRACK_COLORS = [
   "teal",
   "rose",
   "violet",
@@ -24,6 +24,25 @@ export const TRACK_COLORS = [
   "fuchsia",
   "lime",
 ] as const;
+
+/**
+ * Softer, muted tones (beige, sage, lavender…). Listed after the bright set,
+ * so new tracks are still offered the most distinct colours first.
+ */
+export const SOFT_TRACK_COLORS = [
+  "beige",
+  "peach",
+  "blush",
+  "mauve",
+  "lavender",
+  "slate",
+  "seafoam",
+  "sage",
+  "olive",
+  "mocha",
+] as const;
+
+export const TRACK_COLORS = [...BRIGHT_TRACK_COLORS, ...SOFT_TRACK_COLORS] as const;
 
 export type TrackColor = (typeof TRACK_COLORS)[number];
 
@@ -98,7 +117,82 @@ export const TRACK_COLOR_CLASSES: Record<TrackColor, ColorClasses> = {
     border: "border-track-fuchsia/30",
     cssVar: "var(--track-fuchsia)",
   },
+  beige: {
+    bg: "bg-track-beige",
+    text: "text-track-beige",
+    surface: "bg-track-beige/10",
+    border: "border-track-beige/30",
+    cssVar: "var(--track-beige)",
+  },
+  peach: {
+    bg: "bg-track-peach",
+    text: "text-track-peach",
+    surface: "bg-track-peach/10",
+    border: "border-track-peach/30",
+    cssVar: "var(--track-peach)",
+  },
+  blush: {
+    bg: "bg-track-blush",
+    text: "text-track-blush",
+    surface: "bg-track-blush/10",
+    border: "border-track-blush/30",
+    cssVar: "var(--track-blush)",
+  },
+  mauve: {
+    bg: "bg-track-mauve",
+    text: "text-track-mauve",
+    surface: "bg-track-mauve/10",
+    border: "border-track-mauve/30",
+    cssVar: "var(--track-mauve)",
+  },
+  lavender: {
+    bg: "bg-track-lavender",
+    text: "text-track-lavender",
+    surface: "bg-track-lavender/10",
+    border: "border-track-lavender/30",
+    cssVar: "var(--track-lavender)",
+  },
+  slate: {
+    bg: "bg-track-slate",
+    text: "text-track-slate",
+    surface: "bg-track-slate/10",
+    border: "border-track-slate/30",
+    cssVar: "var(--track-slate)",
+  },
+  seafoam: {
+    bg: "bg-track-seafoam",
+    text: "text-track-seafoam",
+    surface: "bg-track-seafoam/10",
+    border: "border-track-seafoam/30",
+    cssVar: "var(--track-seafoam)",
+  },
+  sage: {
+    bg: "bg-track-sage",
+    text: "text-track-sage",
+    surface: "bg-track-sage/10",
+    border: "border-track-sage/30",
+    cssVar: "var(--track-sage)",
+  },
+  olive: {
+    bg: "bg-track-olive",
+    text: "text-track-olive",
+    surface: "bg-track-olive/10",
+    border: "border-track-olive/30",
+    cssVar: "var(--track-olive)",
+  },
+  mocha: {
+    bg: "bg-track-mocha",
+    text: "text-track-mocha",
+    surface: "bg-track-mocha/10",
+    border: "border-track-mocha/30",
+    cssVar: "var(--track-mocha)",
+  },
 };
+
+/** "seafoam" → "Seafoam", for labels and screen readers. */
+export function trackColorLabel(color: TrackColor): string {
+  return color.charAt(0).toUpperCase() + color.slice(1);
+}
 
 export function isTrackColor(value: string): value is TrackColor {
   return (TRACK_COLORS as readonly string[]).includes(value);

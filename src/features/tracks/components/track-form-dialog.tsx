@@ -22,7 +22,9 @@ import { createTrack, updateTrack } from "@/features/tracks/server/actions";
 import {
   DEFAULT_TRACK_COLOR,
   TRACK_COLOR_CLASSES,
-  TRACK_COLORS,
+  BRIGHT_TRACK_COLORS,
+  SOFT_TRACK_COLORS,
+  trackColorLabel,
   type TrackColor,
 } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
@@ -140,24 +142,33 @@ export function TrackFormDialog({
 
           <fieldset className="space-y-2">
             <legend className="mb-2 text-sm font-medium">Colour</legend>
-            <div className="flex flex-wrap gap-2">
-              {TRACK_COLORS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setColor(option)}
-                  aria-label={option}
-                  aria-pressed={color === option}
-                  className={cn(
-                    "focus-visible:ring-ring size-8 cursor-pointer rounded-full transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-offset-2",
-                    TRACK_COLOR_CLASSES[option].bg,
-                    color === option
-                      ? "ring-foreground scale-110 ring-2 ring-offset-2"
-                      : "hover:scale-105",
-                  )}
-                />
-              ))}
-            </div>
+            {[
+              { label: "Bright", colors: BRIGHT_TRACK_COLORS },
+              { label: "Soft", colors: SOFT_TRACK_COLORS },
+            ].map((group) => (
+              <div key={group.label} className="space-y-1.5">
+                <p className="text-muted-foreground text-xs">{group.label}</p>
+                <div className="flex flex-wrap gap-2">
+                  {group.colors.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setColor(option)}
+                      aria-label={trackColorLabel(option)}
+                      title={trackColorLabel(option)}
+                      aria-pressed={color === option}
+                      className={cn(
+                        "focus-visible:ring-ring size-8 cursor-pointer rounded-full transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-offset-2",
+                        TRACK_COLOR_CLASSES[option].bg,
+                        color === option
+                          ? "ring-foreground scale-110 ring-2 ring-offset-2"
+                          : "hover:scale-105",
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </fieldset>
 
           <fieldset className="space-y-2">
