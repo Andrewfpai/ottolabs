@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import {
   Archive,
   ArchiveRestore,
+  ChartNoAxesColumn,
   ChevronDown,
   Circle,
   CircleDot,
@@ -15,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -65,6 +67,7 @@ export function TrackCard({
   hasActiveSession: boolean;
 }) {
   const start = useStartSession();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // The task the next Start records to. Looked up, not stored, so a task
@@ -80,7 +83,13 @@ export function TrackCard({
   function startOn(mode: "stopwatch" | "pomodoro") {
     start.mutate(
       { trackId: track.id, mode, taskId: selected?.id },
-      { onSuccess: () => setSelectedId(null) },
+      {
+        onSuccess: () => {
+          setSelectedId(null);
+          // Straight into focus mode, over your scene.
+          router.push("/focus");
+        },
+      },
     );
   }
 
@@ -116,7 +125,10 @@ export function TrackCard({
 
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-medium">
-            <Link href={`/tracks/${track.id}`} className="hover:underline underline-offset-4">
+            <Link
+              href={isArchived ? `/tracks/${track.id}` : `/focus?track=${track.id}`}
+              className="hover:underline underline-offset-4"
+            >
               {track.title}
             </Link>
           </h3>
@@ -139,6 +151,12 @@ export function TrackCard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild className="cursor-pointer gap-2">
+              <Link href={`/tracks/${track.id}`}>
+                <ChartNoAxesColumn className="size-4" aria-hidden />
+                Stats and notes
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer gap-2"
               onSelect={() => onEdit(track)}

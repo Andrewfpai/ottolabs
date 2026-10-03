@@ -8,6 +8,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   pgEnum,
@@ -15,6 +16,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -34,6 +36,11 @@ export const studyRooms = pgTable(
      * has it can join. Regenerating it retires the old link.
      */
     inviteCode: text("invite_code").unique(),
+    /**
+     * The room "Study together" invites a friend into, made the first time
+     * and reused after, so one-tap invites do not pile up rooms.
+     */
+    personal: boolean("personal").notNull().default(false),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -42,6 +49,8 @@ export const studyRooms = pgTable(
   },
   (t) => [
     index("study_rooms_owner_idx").on(t.ownerId),
+    // At most one personal room each.
+    uniqueIndex("study_rooms_one_personal").on(t.ownerId).where(sql`${t.personal}`),
     check("study_rooms_name_length", sql`char_length(${t.name}) between 1 and 60`),
     check("study_rooms_goal_length", sql`${t.goal} is null or char_length(${t.goal}) between 1 and 120`),
   ],

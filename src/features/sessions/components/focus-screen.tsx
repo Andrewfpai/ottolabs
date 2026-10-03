@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Coffee,
+  Contact,
   Eye,
   EyeOff,
   Maximize,
@@ -38,9 +39,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { Track } from "@/db/schema";
 import { BackgroundPicker } from "@/features/focus/components/background-picker";
 import { FocusBackground } from "@/features/focus/components/focus-background";
+import { FriendsPanel } from "@/features/focus/components/friends-panel";
+import type { FriendCard } from "@/features/friends/server/queries";
 import { SessionNotes } from "@/features/focus/components/session-notes";
 import { StudyTogether } from "@/features/focus/components/study-together";
-import type { MyRoom } from "@/features/rooms/server/queries";
+import type { MyRoom, RoomInvitation } from "@/features/rooms/server/queries";
 import { FinishSessionDialog } from "@/features/sessions/components/finish-session-dialog";
 import {
   useActiveSession,
@@ -144,11 +147,17 @@ export function FocusScreen({
   tracks,
   tasksByTrack,
   rooms,
+  initialTrackId,
+  friends,
+  invitations,
 }: {
   initial: SessionWithTrack | null;
   tracks: Track[];
   tasksByTrack: Record<string, TrackTask[]>;
   rooms: MyRoom[];
+  initialTrackId?: string;
+  friends: FriendCard[];
+  invitations: RoomInvitation[];
 }) {
   const { data: session } = useActiveSession(initial);
   const router = useRouter();
@@ -159,6 +168,8 @@ export function FocusScreen({
   const [frozenMs, setFrozenMs] = useState(0);
   const [panel, setPanel] = useState<"background" | "together" | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
+  // Open by default when a friend is studying or an invitation is waiting.
+  const [friendsOpen, setFriendsOpen] = useState(() => invitations.length > 0 || friends.some((f) => f.live));
   const [hidden, setHidden] = useState(false);
   const [pictureVersion, setPictureVersion] = useState(0);
 
@@ -232,6 +243,14 @@ export function FocusScreen({
                 <NotebookPen className="size-4" aria-hidden />
               </GlassIcon>
             ) : null}
+            <GlassIcon label="Friends" active={friendsOpen} onClick={() => setFriendsOpen((o) => !o)}>
+              <span className="relative">
+                <Contact className="size-4" aria-hidden />
+                {invitations.length > 0 || friends.some((f) => f.live) ? (
+                  <span aria-hidden className="absolute -top-1 -right-1 size-2 rounded-full bg-emerald-400" />
+                ) : null}
+              </span>
+            </GlassIcon>
             <GlassIcon label="Study together" active={Boolean(session?.roomId)} onClick={() => setPanel("together")}>
               <Users className="size-4" aria-hidden />
             </GlassIcon>
@@ -291,7 +310,7 @@ export function FocusScreen({
               </div>
             </>
           ) : (
-            <StartHere tracks={tracks} tasksByTrack={tasksByTrack} />
+            <StartHere tracks={tracks} tasksByTrack={tasksByTrack} initialTrackId={initialTrackId} />
           )}
         </div>
 
@@ -357,6 +376,15 @@ export function FocusScreen({
         </div>
       </div>
 
+      {friendsOpen && !hidden ? (
+        <FriendsPanel
+          friends={friends}
+          invitations={invitations}
+          running={Boolean(session)}
+          onClose={() => setFriendsOpen(false)}
+        />
+      ) : null}
+
       {session && notesOpen && !hidden ? (
         <SessionNotes key={session.id} session={session} onClose={() => setNotesOpen(false)} />
       ) : null}
@@ -389,9 +417,19 @@ export function FocusScreen({
 }
 
 /** With nothing running: pick a track (and a task, if it has any) and start. */
-function StartHere({ tracks, tasksByTrack }: { tracks: Track[]; tasksByTrack: Record<string, TrackTask[]> }) {
+function StartHere({
+  tracks,
+  tasksByTrack,
+  initialTrackId,
+}: {
+  tracks: Track[];
+  tasksByTrack: Record<string, TrackTask[]>;
+  initialTrackId?: string;
+}) {
   const start = useStartSession();
-  const [trackId, setTrackId] = useState(tracks[0]?.id ?? "");
+  const [trackId, setTrackId] = useState(
+    tracks.some((t) => t.id === initialTrackId) ? initialTrackId! : (tracks[0]?.id ?? ""),
+  );
   const [taskId, setTaskId] = useState("none");
   const tasks = tasksByTrack[trackId] ?? [];
 

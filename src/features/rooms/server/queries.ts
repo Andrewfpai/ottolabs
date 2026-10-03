@@ -5,7 +5,7 @@
  * timestamps to tick from, plus time focused in the room. Never notes, tags
  * or tasks.
  */
-import { and, asc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -350,4 +350,30 @@ export async function getMyRooms(): Promise<MyRoom[]> {
     .where(and(eq(roomMembers.userId, me.id), eq(roomMembers.status, "joined")))
     .orderBy(asc(studyRooms.name));
   return rows.map((r) => ({ id: r.id, name: r.name, goal: r.goal, isOwner: r.ownerId === me.id }));
+}
+
+export type RoomInvitation = { roomId: string; roomName: string; from: string; image: string | null };
+
+/** Rooms you have been invited to and not joined yet, newest first. */
+export async function getMyRoomInvitations(): Promise<RoomInvitation[]> {
+  const me = await requireUser();
+  const rows = await db
+    .select({
+      roomId: studyRooms.id,
+      roomName: studyRooms.name,
+      ownerName: users.name,
+      ownerEmail: users.email,
+      image: userPicture,
+    })
+    .from(roomMembers)
+    .innerJoin(studyRooms, eq(studyRooms.id, roomMembers.roomId))
+    .innerJoin(users, eq(users.id, studyRooms.ownerId))
+    .where(and(eq(roomMembers.userId, me.id), eq(roomMembers.status, "invited")))
+    .orderBy(desc(roomMembers.invitedAt));
+  return rows.map((r) => ({
+    roomId: r.roomId,
+    roomName: r.roomName,
+    from: displayName({ name: r.ownerName, email: r.ownerEmail }),
+    image: r.image,
+  }));
 }

@@ -276,6 +276,25 @@ export async function notifyCheer(fromId: string, toId: string, kind: CheerKind,
   await sendToUser(toId, cheerMessage({ fromId, name: displayName(sender), kind, todayMs }));
 }
 
+/** "Sam wants to study together", to the invited friend if they take cheers and invites. */
+export async function notifyStudyInvite(fromId: string, toId: string, inviteCode: string): Promise<void> {
+  if (!pushConfigured()) return;
+  const [recipient] = await db
+    .select({ notifyCheers: userSettings.notifyCheers })
+    .from(userSettings)
+    .where(eq(userSettings.userId, toId))
+    .limit(1);
+  if (!recipient?.notifyCheers) return;
+  const [sender] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, fromId)).limit(1);
+  if (!sender) return;
+  await sendToUser(toId, {
+    title: `🙌 ${displayName(sender)} wants to study together`,
+    body: "Tap to join their room and focus side by side.",
+    url: `/rooms/join/${inviteCode}`,
+    tag: `study-invite-${fromId}`,
+  });
+}
+
 /** Housekeeping: the log only needs to remember about a week. */
 export async function pruneReminderLog(now: number = Date.now()): Promise<void> {
   await db.delete(reminderLog).where(sql`${reminderLog.sentAt} < ${new Date(now - 8 * 86_400_000)}`);

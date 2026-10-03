@@ -9,8 +9,9 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { focusSessions, friendships, roomMembers, studyRooms } from "@/db/schema";
-import { notifyRoomStart } from "@/features/reminders/server/push";
+import { focusSessions, friendships, roomMembers, studyRooms, users } from "@/db/schema";
+import { notifyRoomStart, notifyStudyInvite } from "@/features/reminders/server/push";
+import { displayName } from "@/features/friends/lib/sharing";
 import { parseRoomCode } from "@/features/rooms/lib/invite-code";
 import { MAX_ROOM_MEMBERS } from "@/features/rooms/lib/room";
 import {
@@ -303,4 +304,93 @@ export async function focusInRoom(input: unknown): Promise<ActionResult> {
   revalidateRooms();
   after(() => notifyRoomStart(parsed.data.roomId, me.id));
   return ok(undefined);
+}
+
+/** Your personal room, made on first use. */
+async function personalRoom(userId: string) {
+  const [existing] = await db
+    .select()
+    .from(studyRooms)
+    .where(and(eq(studyRooms.ownerId, userId), eq(studyRooms.personal, true)))
+    .limit(1);
+  if (existing) {
+    if (existing.inviteCode) return existing;
+    const inviteCode = newRoomCode();
+    await db.update(studyRooms).set({ inviteCode }).where(eq(studyRooms.id, existing.id));
+    return { ...existing, inviteCode };
+  }
+
+  const [me] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  const name = `${me ? displayName(me) : "My"}'s room`.slice(0, 60);
+  return db.transaction(async (tx) => {
+    const [room] = await tx
+      .insert(studyRooms)
+      .values({ name, ownerId: userId, personal: true, inviteCode: newRoomCode() })
+      .onConflictDoNothing()
+      .returning();
+    // Two tabs racing: the other one made it; use theirs.
+    if (!room) {
+      const [made] = await tx
+        .select()
+        .from(studyRooms)
+        .where(and(eq(studyRooms.ownerId, userId), eq(studyRooms.personal, true)))
+        .limit(1);
+      return made;
+    }
+    await tx.insert(roomMembers).values({ roomId: room.id, userId, status: "joined", joinedAt: new Date() });
+    return room;
+  });
+}
+
+/**
+ * "Study together" with one friend: invite them into your personal room,
+ * bring your running timer there, and let them know. One tap, no setup.
+ */
+export async function studyWith(input: unknown): Promise<ActionResult<{ roomId: string; already: boolean }>> {
+  const me = await requireUser();
+  const parsed = z.object({ friendId: z.string().min(1).max(100) }).safeParse(input);
+  if (!parsed.success) return fail("Unknown person.");
+  const { friendId } = parsed.data;
+
+  const [friendship] = await db
+    .select({ id: friendships.id })
+    .from(friendships)
+    .where(
+      and(
+        eq(friendships.status, "accepted"),
+        or(
+          and(eq(friendships.requesterId, me.id), eq(friendships.addresseeId, friendId)),
+          and(eq(friendships.requesterId, friendId), eq(friendships.addresseeId, me.id)),
+        ),
+      ),
+    )
+    .limit(1);
+  if (!friendship) return fail("You can only invite your friends.", "NOT_FOUND");
+
+  const room = await personalRoom(me.id);
+  const [member] = await db
+    .select({ status: roomMembers.status })
+    .from(roomMembers)
+    .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, friendId)))
+    .limit(1);
+
+  if (!member) {
+    const [{ members }] = await db.select({ members: count() }).from(roomMembers).where(eq(roomMembers.roomId, room.id));
+    if (members >= MAX_ROOM_MEMBERS) return fail(`Your room is full (${MAX_ROOM_MEMBERS} people). Remove someone first.`, "FULL");
+    await db.insert(roomMembers).values({ roomId: room.id, userId: friendId, status: "invited" }).onConflictDoNothing();
+  }
+
+  // Your own timer, if running, now counts in the room they are joining.
+  await db
+    .update(focusSessions)
+    .set({ roomId: room.id })
+    .where(and(eq(focusSessions.userId, me.id), isNull(focusSessions.endedAt)));
+
+  revalidateRooms();
+  revalidatePath("/focus");
+  if (member?.status !== "joined") {
+    const code = room.inviteCode!;
+    after(() => notifyStudyInvite(me.id, friendId, code));
+  }
+  return ok({ roomId: room.id, already: member?.status === "joined" });
 }

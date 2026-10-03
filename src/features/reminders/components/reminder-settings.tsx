@@ -36,8 +36,8 @@ const OPTIONS: { key: keyof Prefs; label: string; description: string }[] = [
   },
   {
     key: "notifyCheers",
-    label: "Cheers from friends",
-    description: "When a friend sends you a 👏 or 🔥, with how much you have focused today.",
+    label: "Cheers and study invites",
+    description: "When a friend sends you a 👏 or 🔥, or asks you to study together.",
   },
   {
     key: "remindReviews",
