@@ -16,7 +16,6 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -67,7 +66,6 @@ export function TrackCard({
   hasActiveSession: boolean;
 }) {
   const start = useStartSession();
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // The task the next Start records to. Looked up, not stored, so a task
@@ -83,13 +81,7 @@ export function TrackCard({
   function startOn(mode: "stopwatch" | "pomodoro") {
     start.mutate(
       { trackId: track.id, mode, taskId: selected?.id },
-      {
-        onSuccess: () => {
-          setSelectedId(null);
-          // Straight into focus mode, over your scene.
-          router.push("/focus");
-        },
-      },
+      { onSuccess: () => setSelectedId(null) },
     );
   }
 
@@ -125,9 +117,12 @@ export function TrackCard({
 
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-medium">
+            {/* The whole card is this link (the ::before covers it): a click opens
+                focus mode with this track ready, without starting anything. The
+                buttons on the card sit above it with z-10. */}
             <Link
               href={isArchived ? `/tracks/${track.id}` : `/focus?track=${track.id}`}
-              className="hover:underline underline-offset-4"
+              className="underline-offset-4 group-hover:underline before:absolute before:inset-0 before:rounded-xl before:content-[''] focus-visible:outline-none focus-visible:before:ring-2 focus-visible:before:ring-ring"
             >
               {track.title}
             </Link>
@@ -144,7 +139,7 @@ export function TrackCard({
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground -mt-1 -mr-1 size-8 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+              className="text-muted-foreground relative z-10 -mt-1 -mr-1 size-8 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
               aria-label={`Actions for ${track.title}`}
             >
               <MoreVertical className="size-4" aria-hidden />
@@ -236,7 +231,7 @@ export function TrackCard({
           // Split control: the common case is one click, and the pomodoro
           // variant is one more. Both start the same kind of session — the
           // mode only decides whether breaks are scheduled for you.
-          <div className="flex items-stretch">
+          <div className="relative z-10 flex items-stretch">
             <Button
               variant="cta"
               size="lg"
@@ -320,7 +315,7 @@ function TaskPicker({
   const more = tasks.length - shown.length;
 
   return (
-    <div className="mt-3 border-t pt-3">
+    <div className="relative z-10 mt-3 border-t pt-3">
       <p className="text-muted-foreground mb-1 text-xs">
         {selectedId ? "Start records to the picked task" : "Pick a task to record to"}
       </p>
