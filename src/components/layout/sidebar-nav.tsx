@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUpRight, Languages } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +11,9 @@ import {
   type NavItem,
 } from "@/components/layout/nav-items";
 import { cn } from "@/lib/utils";
+
+/** The HSK 5 prep app, a separate site. Unset hides the link. */
+const OTTOHSK_URL = process.env.NEXT_PUBLIC_OTTOHSK_URL ?? "";
 
 function NavLink({
   item,
@@ -68,6 +72,17 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       ))}
 
       <div className="flex-1" />
+
+      {OTTOHSK_URL ? (
+        <a
+          href={OTTOHSK_URL}
+          className="group focus-visible:ring-ring text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <Languages aria-hidden className="text-muted-foreground/70 size-4 shrink-0" />
+          <span className="flex-1">OttoHSK</span>
+          <ArrowUpRight aria-hidden className="size-3.5 opacity-60" />
+        </a>
+      ) : null}
 
       {SECONDARY_NAV_ITEMS.map((item) => (
         <NavLink
