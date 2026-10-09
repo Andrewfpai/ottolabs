@@ -4,7 +4,13 @@ import { motion, useReducedMotion } from "motion/react";
 import { DoorOpen, X } from "lucide-react";
 import Link from "next/link";
 
-import { Leaderboard, PresenceAvatar, Reactions, useRoomLive } from "@/features/rooms/components/room-live";
+import {
+  LeftRoomError,
+  Leaderboard,
+  PresenceAvatar,
+  Reactions,
+  useRoomLive,
+} from "@/features/rooms/components/room-live";
 
 /**
  * The room you are studying in, over focus mode: who is here and what they
@@ -13,10 +19,14 @@ import { Leaderboard, PresenceAvatar, Reactions, useRoomLive } from "@/features/
  */
 export function RoomPanel({ roomId, roomName, onClose }: { roomId: string; roomName: string; onClose: () => void }) {
   const reduceMotion = useReducedMotion();
-  const { data } = useRoomLive(roomId);
+  const { data: live, error } = useRoomLive(roomId);
+  // Removed by the owner, or the room was deleted: stop showing it as if nothing happened.
+  const removed = error instanceof LeftRoomError;
+  const data = removed ? undefined : live;
 
   const focusing = data?.members.filter((m) => m.state === "focusing").length ?? 0;
-  const viewerId = data?.members.find((m) => m.isSelf)?.id;
+  const self = data?.members.find((m) => m.isSelf);
+  const viewerId = self?.id;
 
   return (
     <motion.section
@@ -32,7 +42,11 @@ export function RoomPanel({ roomId, roomName, onClose }: { roomId: string; roomN
             <span className="truncate">{roomName}</span>
           </Link>
           <p className="text-xs text-white/60">
-            {data ? `${focusing} of ${data.members.length} focusing now` : "Joining the room…"}
+            {removed
+              ? "You are no longer in this room."
+              : data
+                ? `${focusing} of ${data.members.length} focusing now`
+                : "Joining the room…"}
           </p>
         </div>
         <button
@@ -52,7 +66,8 @@ export function RoomPanel({ roomId, roomName, onClose }: { roomId: string; roomN
               <PresenceAvatar key={m.id} member={m} className="size-7 ring-offset-black/0" />
             ))}
           </div>
-          <Leaderboard members={data.members} asOf={data.asOf} compact />
+          {/* Owners can remove people right here, without leaving focus mode. */}
+          <Leaderboard members={data.members} asOf={data.asOf} compact kickFrom={self?.isOwner ? roomId : undefined} />
           <Reactions roomId={roomId} reactions={data.reactions} asOf={data.asOf} viewerId={viewerId} compact />
         </div>
       ) : null}

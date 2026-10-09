@@ -118,10 +118,13 @@ export function Leaderboard({
   members,
   asOf,
   compact = false,
+  kickFrom,
 }: {
   members: RoomMemberLive[];
   asOf: number;
   compact?: boolean;
+  /** The room id, when the viewer owns it: each other person gets a remove button. */
+  kickFrom?: string;
 }) {
   const hydrated = useIsHydrated();
   // Every second, so the bars visibly move while people work.
@@ -158,16 +161,16 @@ export function Leaderboard({
                     {member.name}
                     {member.isSelf ? <span className={muted}> (you)</span> : null}
                   </span>
-                  {studying ? (
-                    <span
-                      className={cn("font-numeric shrink-0", compact ? "text-xs" : "text-sm")}
-                      suppressHydrationWarning
-                    >
-                      {formatDuration(ms)}
-                    </span>
-                  ) : (
-                    <span className={cn("shrink-0 text-xs", muted)}>Not studying</span>
-                  )}
+                  <span className="flex shrink-0 items-center gap-1">
+                    {studying ? (
+                      <span className={cn("font-numeric", compact ? "text-xs" : "text-sm")} suppressHydrationWarning>
+                        {formatDuration(ms)}
+                      </span>
+                    ) : (
+                      <span className={cn("text-xs", muted)}>Not studying</span>
+                    )}
+                    {kickFrom && !member.isSelf ? <KickButton roomId={kickFrom} member={member} compact={compact} /> : null}
+                  </span>
                 </div>
                 <div className={cn("mt-1 h-2 overflow-hidden rounded-full", compact ? "bg-white/10" : "bg-muted")}>
                   <motion.div
@@ -323,24 +326,11 @@ function Activity({ data }: { data: RoomLiveData }) {
   );
 }
 
-function MemberRow({
-  member,
-  roomId,
-  canKick,
-}: {
-  member: RoomMemberLive;
-  roomId: string;
-  canKick: boolean;
-}) {
-  const hydrated = useIsHydrated();
+/** The owner's "remove from room" button, with a confirmation. */
+export function KickButton({ roomId, member, compact = false }: { roomId: string; member: RoomMemberLive; compact?: boolean }) {
   const queryClient = useQueryClient();
-  const meta = STATE_META[member.state];
-  const Icon = meta.icon;
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
-  useRepaint(member.state === "focusing");
-
-  const minutes = hydrated && member.session ? formatCompact(elapsedMs(member.session, clockNow())) : null;
 
   function kick() {
     startTransition(async () => {
@@ -354,6 +344,67 @@ function MemberRow({
       void queryClient.invalidateQueries({ queryKey: roomQueryKey(roomId) });
     });
   }
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "shrink-0 cursor-pointer",
+          compact ? "size-6 text-white/60 hover:bg-white/15 hover:text-white" : "text-muted-foreground hover:text-destructive size-8",
+        )}
+        aria-label={`Remove ${member.name} from the room`}
+        title="Remove from room"
+        onClick={() => setConfirming(true)}
+      >
+        <UserMinus className={compact ? "size-3.5" : "size-4"} aria-hidden />
+      </Button>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {member.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They leave the room straight away and stop seeing it. Their sessions stay theirs. You can invite them
+              again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer" disabled={pending}>
+              Keep them
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 cursor-pointer text-white"
+              disabled={pending}
+              onClick={(event) => {
+                event.preventDefault();
+                kick();
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function MemberRow({
+  member,
+  roomId,
+  canKick,
+}: {
+  member: RoomMemberLive;
+  roomId: string;
+  canKick: boolean;
+}) {
+  const hydrated = useIsHydrated();
+  const meta = STATE_META[member.state];
+  const Icon = meta.icon;
+  useRepaint(member.state === "focusing");
+
+  const minutes = hydrated && member.session ? formatCompact(elapsedMs(member.session, clockNow())) : null;
 
   return (
     <li className="flex items-center gap-3 px-4 py-3">
@@ -381,46 +432,7 @@ function MemberRow({
           ) : null}
         </div>
       </div>
-      {canKick ? (
-        <>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-destructive size-8 cursor-pointer"
-            aria-label={`Remove ${member.name} from the room`}
-            title="Remove from room"
-            onClick={() => setConfirming(true)}
-          >
-            <UserMinus className="size-4" aria-hidden />
-          </Button>
-          <AlertDialog open={confirming} onOpenChange={setConfirming}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remove {member.name}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  They leave the room straight away and stop seeing it. Their sessions stay theirs. You can invite
-                  them again later.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="cursor-pointer" disabled={pending}>
-                  Keep them
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive hover:bg-destructive/90 cursor-pointer text-white"
-                  disabled={pending}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    kick();
-                  }}
-                >
-                  Remove
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      ) : null}
+      {canKick ? <KickButton roomId={roomId} member={member} /> : null}
     </li>
   );
 }
