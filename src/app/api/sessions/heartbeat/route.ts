@@ -1,7 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
+import { after } from "next/server";
 
 import { db } from "@/db";
 import { focusSessions } from "@/db/schema";
+import { maybeRunDueTaskReminders } from "@/features/tasks/server/reminders";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,10 @@ export async function POST() {
       ),
     )
     .returning({ id: focusSessions.id });
+
+  // While anyone is focusing, reminders ring close to on time without waiting
+  // for the scheduler. After the response, so the heartbeat stays instant.
+  after(() => maybeRunDueTaskReminders());
 
   // 409 tells the client its session is gone — stopped elsewhere, or reaped —
   // so it can stop ticking rather than displaying a timer that no longer exists.

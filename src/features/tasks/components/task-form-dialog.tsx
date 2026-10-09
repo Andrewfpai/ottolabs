@@ -33,6 +33,7 @@ import {
   TASK_STATUSES,
   updateTaskSchema,
 } from "@/features/tasks/schema";
+import { ReminderOffsetsEditor } from "@/features/tasks/components/reminder-offsets-editor";
 import { createTask, updateTask } from "@/features/tasks/server/actions";
 import type { TaskWithTrack } from "@/features/tasks/server/queries";
 import type { TrackOption } from "@/features/tracks/server/queries";
@@ -66,6 +67,7 @@ export function TaskFormDialog({
   timeZone,
   todayKey,
   weekStartsOn,
+  defaultReminders = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -77,6 +79,8 @@ export function TaskFormDialog({
   timeZone: string;
   todayKey: DayKey;
   weekStartsOn: 0 | 1;
+  /** What a new task's reminders start as: the defaults from Settings. */
+  defaultReminders?: number[];
 }) {
   const isEdit = Boolean(task);
 
@@ -93,6 +97,7 @@ export function TaskFormDialog({
   const [dueTime, setDueTime] = useState(
     task?.dueAt && !task.isAllDay ? timeOfDay(task.dueAt, timeZone) : "",
   );
+  const [reminders, setReminders] = useState<number[]>(task ? task.reminders : defaultReminders);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -118,6 +123,7 @@ export function TaskFormDialog({
       priority,
       dueDate,
       dueTime: dueDate && dueTime ? dueTime : null,
+      reminders,
     };
 
     // Same schema the server runs, so obvious mistakes never leave the browser.
@@ -252,6 +258,18 @@ export function TaskFormDialog({
               {dueDate && !dueTime
                 ? "No time set, so it is due any time that day."
                 : `Times are in ${timeZone.replace(/_/g, " ")}.`}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-sm leading-none font-medium">Reminders</span>
+            <ReminderOffsetsEditor value={reminders} onChange={setReminders} disabled={pending} />
+            <p className="text-muted-foreground text-xs">
+              {!dueDate
+                ? "Set a deadline and these will ring before it."
+                : !dueTime
+                  ? "No time set, so they count back from 09:00 on the day."
+                  : "Sent as notifications to the devices you turned them on for."}
             </p>
           </div>
 

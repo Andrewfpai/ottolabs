@@ -30,6 +30,7 @@ export function DashboardTasks({
   timeZone,
   todayKey,
   weekStartsOn,
+  defaultReminders,
 }: {
   sections: Section[];
   tracks: TrackOption[];
@@ -37,6 +38,7 @@ export function DashboardTasks({
   timeZone: string;
   todayKey: DayKey;
   weekStartsOn: 0 | 1;
+  defaultReminders: number[];
 }) {
   const [form, setForm] = useState<FormState>({ open: false, generation: 0 });
   const [deleting, setDeleting] = useState<TaskWithTrack | null>(null);
@@ -121,6 +123,7 @@ export function DashboardTasks({
         timeZone={timeZone}
         todayKey={todayKey}
         weekStartsOn={weekStartsOn}
+        defaultReminders={defaultReminders}
       />
       <DeleteTaskDialog task={deleting} onClose={() => setDeleting(null)} />
     </>

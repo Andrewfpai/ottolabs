@@ -6,7 +6,7 @@
  * every streak calculation respects it — otherwise a 1am study session looks
  * like it broke your streak *and* started a new one.
  */
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
@@ -31,6 +31,14 @@ export const userSettings = pgTable("user_settings", {
   dayStartHour: integer("day_start_hour").notNull().default(4),
 
   dailyGoalMinutes: integer("daily_goal_minutes").notNull().default(120),
+  /**
+   * Reminders every new task starts with, in minutes before its deadline
+   * ("1 day before" is 1440). Empty means none. Each task can change its own.
+   */
+  defaultTaskReminders: integer("default_task_reminders")
+    .array()
+    .notNull()
+    .default(sql`ARRAY[]::integer[]`),
   /** 0 = Sunday, 1 = Monday. */
   weekStartsOn: integer("week_starts_on").notNull().default(1),
 

@@ -12,6 +12,7 @@ import { AvatarPicker } from "@/features/friends/components/avatar-picker";
 import { UsernameForm } from "@/features/friends/components/username-form";
 import { suggestUsername } from "@/features/friends/lib/username";
 import { ReminderSettings } from "@/features/reminders/components/reminder-settings";
+import { DefaultTaskReminders } from "@/features/tasks/components/default-reminders";
 import { getReminderSettings } from "@/features/reminders/server/queries";
 import { PomodoroAlertSettings } from "@/features/sessions/components/pomodoro-alert-settings";
 import { FocusSoundControls } from "@/features/sounds/components/focus-sound-picker";
@@ -123,6 +124,9 @@ export default async function SettingsPage() {
           Notifications on your phone or computer, even when OttoLabs is closed.
         </p>
         <ReminderSettings settings={reminders} />
+        <div className="mt-6 border-t pt-6">
+          <DefaultTaskReminders initial={settings.defaultTaskReminders} />
+        </div>
       </section>
 
       <section

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { Task } from "@/db/schema";
+import { MAX_OFFSET_MINUTES, MAX_REMINDERS } from "@/features/tasks/lib/task-reminders";
 import { isDayKey } from "@/lib/time/calendar-day";
 
 // Spelled out rather than read from the pgEnums so this file, which the task
@@ -45,6 +46,12 @@ const taskFields = z.object({
   priority: z.enum(TASK_PRIORITIES).default("p3"),
   dueDate,
   dueTime,
+  /** Minutes before the deadline. Omitted on create means "my defaults"; on update, "unchanged". */
+  reminders: z.array(z.number().int().min(0).max(MAX_OFFSET_MINUTES)).max(MAX_REMINDERS).optional(),
+});
+
+export const defaultRemindersSchema = z.object({
+  reminders: z.array(z.number().int().min(0).max(MAX_OFFSET_MINUTES)).max(MAX_REMINDERS),
 });
 
 const timeNeedsDate = {

@@ -8,6 +8,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   pgEnum,
@@ -105,3 +106,33 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
 
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
+
+/**
+ * "Remind me 2 hours before." One row per reminder on a task, with the
+ * instant it rings worked out when the task is saved (deadlines move, so it
+ * is recomputed on every save). `sentAt` set means rung, or skipped because
+ * it was already in the past when saved.
+ */
+export const taskReminders = pgTable(
+  "task_reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    offsetMinutes: integer("offset_minutes").notNull(),
+    fireAt: timestamp("fire_at", { withTimezone: true }).notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("task_reminders_task_offset_unique").on(t.taskId, t.offsetMinutes),
+    // The sender scans for rings that are due and not yet sent.
+    index("task_reminders_due_idx").on(t.fireAt).where(sql`${t.sentAt} is null`),
+    check("task_reminders_offset_range", sql`${t.offsetMinutes} between 0 and 43200`),
+  ],
+);
+
+export type TaskReminder = typeof taskReminders.$inferSelect;

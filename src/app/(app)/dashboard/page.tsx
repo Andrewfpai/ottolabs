@@ -156,6 +156,7 @@ export default async function DashboardPage() {
           timeZone={board.timeZone}
           todayKey={board.todayKey}
           weekStartsOn={settings.weekStartsOn === 0 ? 0 : 1}
+          defaultReminders={board.defaultReminders}
         />
 
         <Panel title="Recent activity" description={`The last ${RECENT_WEEKS} weeks, one square a day.`}>

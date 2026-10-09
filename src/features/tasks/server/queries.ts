@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { focusSessions, type Task, tasks, tracks } from "@/db/schema";
+import { focusSessions, type Task, taskReminders, tasks, tracks } from "@/db/schema";
 import { groupOpenTasks, type OpenBucket } from "@/features/tasks/lib/due";
 import { FOCUS_MS } from "@/features/tracks/server/queries";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
@@ -9,7 +9,12 @@ import { addDays, type DayKey, dayKey, zonedInstant } from "@/lib/time/calendar-
 
 export type TaskWithTrack = Task & {
   track: { id: string; title: string; color: string; icon: string } | null;
+  /** Reminder offsets in minutes before the deadline, furthest first. */
+  reminders: number[];
 };
+
+/** A task's reminder offsets, as one array column. */
+const reminderOffsets = sql<number[] | null>`(select array_agg(${taskReminders.offsetMinutes} order by ${taskReminders.offsetMinutes} desc) from ${taskReminders} where ${taskReminders.taskId} = ${tasks.id})`;
 
 const trackShape = {
   id: tracks.id,
@@ -38,6 +43,8 @@ export type TaskBoard = {
   now: number;
   todayKey: DayKey;
   timeZone: string;
+  /** Reminders a new task starts with (Settings). */
+  defaultReminders: number[];
 };
 
 function trackCondition(filter: TaskTrackFilter) {
@@ -58,21 +65,21 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
 
   const [openRows, closedRows, reviewRows] = await Promise.all([
     db
-      .select({ task: tasks, track: trackShape })
+      .select({ task: tasks, track: trackShape, reminders: reminderOffsets })
       .from(tasks)
       .leftJoin(tracks, eq(tracks.id, tasks.trackId))
       .where(
         and(eq(tasks.userId, user.id), inArray(tasks.status, ["todo", "in_progress"]), byTrack),
       ),
     db
-      .select({ task: tasks, track: trackShape })
+      .select({ task: tasks, track: trackShape, reminders: reminderOffsets })
       .from(tasks)
       .leftJoin(tracks, eq(tracks.id, tasks.trackId))
       .where(and(eq(tasks.userId, user.id), inArray(tasks.status, ["done", "cancelled"]), byTrack))
       .orderBy(desc(sql`coalesce(${tasks.completedAt}, ${tasks.updatedAt})`))
       .limit(RECENT_CLOSED_LIMIT),
     db
-      .select({ task: tasks, track: trackShape })
+      .select({ task: tasks, track: trackShape, reminders: reminderOffsets })
       .from(tasks)
       .leftJoin(tracks, eq(tracks.id, tasks.trackId))
       .where(
@@ -90,6 +97,8 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
   const toTask = (row: (typeof openRows)[number]): TaskWithTrack => ({
     ...row.task,
     track: row.track,
+    // An int[] aggregate; `sql<T>` is only a cast (AGENTS rule 8), so coerce.
+    reminders: (row.reminders ?? []).map(Number),
   });
 
   return {
@@ -99,6 +108,7 @@ export async function getTaskBoard(options?: { trackId?: TaskTrackFilter }): Pro
     now,
     todayKey,
     timeZone,
+    defaultReminders: settings.defaultTaskReminders,
   };
 }
 
@@ -110,7 +120,7 @@ export async function getTasksDueBetween(from: Date, to: Date): Promise<TaskWith
   const user = await requireUser();
 
   const rows = await db
-    .select({ task: tasks, track: trackShape })
+    .select({ task: tasks, track: trackShape, reminders: reminderOffsets })
     .from(tasks)
     .leftJoin(tracks, eq(tracks.id, tasks.trackId))
     .where(
@@ -122,7 +132,7 @@ export async function getTasksDueBetween(from: Date, to: Date): Promise<TaskWith
       ),
     );
 
-  return rows.map((row) => ({ ...row.task, track: row.track }));
+  return rows.map((row) => ({ ...row.task, track: row.track, reminders: (row.reminders ?? []).map(Number) }));
 }
 
 /** The fields task statistics need, for every task the user has. */

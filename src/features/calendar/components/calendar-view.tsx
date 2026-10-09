@@ -147,6 +147,7 @@ export function CalendarView({ data, tracks }: { data: CalendarData; tracks: Tra
         timeZone={data.timeZone}
         todayKey={data.todayKey}
         weekStartsOn={data.weekStartsOn}
+        defaultReminders={data.defaultReminders}
       />
       <DeleteTaskDialog task={deleting} onClose={() => setDeleting(null)} />
     </>

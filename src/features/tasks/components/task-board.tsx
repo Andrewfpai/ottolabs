@@ -224,6 +224,7 @@ export function TaskBoard({
         defaults={form.defaults}
         tracks={tracks}
         timeZone={board.timeZone}
+        defaultReminders={board.defaultReminders}
         todayKey={board.todayKey}
         weekStartsOn={weekStartsOn}
       />

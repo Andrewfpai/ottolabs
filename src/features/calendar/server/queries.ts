@@ -20,6 +20,7 @@ export type CalendarData = {
   todayKey: DayKey;
   timeZone: string;
   weekStartsOn: 0 | 1;
+  defaultReminders: number[];
 };
 
 export async function getCalendarData(options: {
@@ -68,5 +69,6 @@ export async function getCalendarData(options: {
     todayKey,
     timeZone,
     weekStartsOn,
+    defaultReminders: settings.defaultTaskReminders,
   };
 }

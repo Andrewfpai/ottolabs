@@ -4,10 +4,11 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { type Task, tasks, tracks } from "@/db/schema";
+import { type Task, tasks, tracks, userSettings } from "@/db/schema";
 import {
   createTaskSchema,
   setTaskStatusSchema,
+  defaultRemindersSchema,
   taskIdSchema,
   updateTaskSchema,
 } from "@/features/tasks/schema";
@@ -15,6 +16,8 @@ import { type ActionResult, fail, isForeignKeyViolation, ok } from "@/lib/action
 import { requireSettings, requireUser } from "@/lib/auth-guard";
 import { checkMilestones } from "@/features/achievements/server/sync";
 import { afterReview, firstReview } from "@/features/tasks/lib/reviews";
+import { normalizeOffsets } from "@/features/tasks/lib/task-reminders";
+import { saveTaskReminders, taskReminderOffsets } from "@/features/tasks/server/reminders";
 import { dayKey, zonedInstant } from "@/lib/time/calendar-day";
 
 const TRACK_GONE = "That track no longer exists. Pick another or leave it empty.";
@@ -65,7 +68,7 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
     return fail(parsed.error.issues[0]?.message ?? "That does not look right.");
   }
 
-  const { dueDate, dueTime, ...values } = parsed.data;
+  const { dueDate, dueTime, reminders, ...values } = parsed.data;
   if (!(await ownsTrack(values.trackId, user.id))) return fail(TRACK_GONE, "TRACK_NOT_FOUND");
 
   const settings = await requireSettings();
@@ -75,6 +78,16 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
       .insert(tasks)
       .values({ ...values, ...deadline(dueDate, dueTime, settings.timezone), userId: user.id })
       .returning();
+
+    // Quick add and the command palette send none: they get your defaults.
+    await saveTaskReminders({
+      taskId: created.id,
+      userId: user.id,
+      offsets: reminders ?? settings.defaultTaskReminders,
+      dueAt: created.dueAt,
+      isAllDay: created.isAllDay,
+      timeZone: settings.timezone,
+    });
 
     revalidateTaskViews();
     return ok(created);
@@ -93,7 +106,7 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
     return fail(parsed.error.issues[0]?.message ?? "That does not look right.");
   }
 
-  const { id, dueDate, dueTime, ...values } = parsed.data;
+  const { id, dueDate, dueTime, reminders, ...values } = parsed.data;
   if (!(await ownsTrack(values.trackId, user.id))) return fail(TRACK_GONE, "TRACK_NOT_FOUND");
 
   const settings = await requireSettings();
@@ -111,6 +124,16 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
       .returning();
 
     if (!updated) return fail(TASK_GONE, "NOT_FOUND");
+
+    // Recomputed on every save: the deadline may have moved.
+    await saveTaskReminders({
+      taskId: updated.id,
+      userId: user.id,
+      offsets: reminders ?? (await taskReminderOffsets(updated.id)),
+      dueAt: updated.dueAt,
+      isAllDay: updated.isAllDay,
+      timeZone: settings.timezone,
+    });
 
     revalidateTaskViews();
     return ok(updated);
@@ -221,4 +244,16 @@ export async function stopReviews(input: unknown): Promise<ActionResult> {
 
   revalidateTaskViews();
   return ok(undefined);
+}
+
+/** The reminders new tasks start with. */
+export async function setDefaultTaskReminders(input: unknown): Promise<ActionResult<number[]>> {
+  const user = await requireUser();
+  const parsed = defaultRemindersSchema.safeParse(input);
+  if (!parsed.success) return fail("Those reminders do not look right.");
+  const reminders = normalizeOffsets(parsed.data.reminders);
+  await db.update(userSettings).set({ defaultTaskReminders: reminders }).where(eq(userSettings.userId, user.id));
+  revalidatePath("/settings");
+  revalidateTaskViews();
+  return ok(reminders);
 }
