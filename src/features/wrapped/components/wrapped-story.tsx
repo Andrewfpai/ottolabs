@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { toast } from "sonner";
 import { Download, Pause, Play, Share2, X } from "lucide-react";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
@@ -450,13 +451,22 @@ function slidesFor(data: WrappedData): Slide[] {
 }
 
 /** The summary card, sized like a story, ready to share. */
-export function SummaryCard({ data, cardRef }: { data: WrappedData; cardRef?: React.Ref<HTMLDivElement> }) {
+export function SummaryCard({
+  data,
+  cardRef,
+  square = false,
+}: {
+  data: WrappedData;
+  cardRef?: React.Ref<HTMLDivElement>;
+  /** For the exported image: no rounded corners. */
+  square?: boolean;
+}) {
   const me = persona(data);
   const peak = peakHour(data.hours);
   return (
     <div
       ref={cardRef}
-      className="relative flex aspect-[9/16] w-full flex-col overflow-hidden rounded-3xl p-5 text-white"
+      className={cn("relative flex aspect-[9/16] w-full flex-col overflow-hidden p-5 text-white", !square && "rounded-3xl")}
       style={{ background: "linear-gradient(160deg, #6A1B9A 0%, #E040A0 55%, #FF8A00 100%)" }}
     >
       <div aria-hidden className="absolute -top-16 -right-16 size-48 rounded-[38%] bg-[#FFD166]/90" />
@@ -465,19 +475,19 @@ export function SummaryCard({ data, cardRef }: { data: WrappedData; cardRef?: Re
         <Me data={data} size="size-14" />
         <div className="min-w-0">
           <p className="truncate text-lg leading-tight font-black">{data.person.name}</p>
-          <p className="text-xs font-semibold tracking-wider uppercase opacity-85">
+          <p className="text-xs font-bold tracking-wider uppercase opacity-85">
             {data.monthName} {data.year} · Wrapped
           </p>
         </div>
       </div>
       <div className="relative mt-auto space-y-3">
         <div>
-          <p className="text-xs font-semibold tracking-wider uppercase opacity-80">Focused</p>
+          <p className="text-xs font-bold tracking-wider uppercase opacity-80">Focused</p>
           <p className="text-5xl leading-none font-black">{formatCompact(data.focusMs)}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs font-semibold tracking-wider uppercase opacity-80">Top tracks</p>
+            <p className="text-xs font-bold tracking-wider uppercase opacity-80">Top tracks</p>
             <ol className="mt-1 space-y-0.5 text-sm font-bold">
               {data.tracks.slice(0, 3).map((t, i) => (
                 <li key={t.title} className="truncate">
@@ -488,19 +498,19 @@ export function SummaryCard({ data, cardRef }: { data: WrappedData; cardRef?: Re
           </div>
           <div className="space-y-2">
             <div>
-              <p className="text-xs font-semibold tracking-wider uppercase opacity-80">Streak</p>
+              <p className="text-xs font-bold tracking-wider uppercase opacity-80">Streak</p>
               <p className="text-lg font-black">{data.longestStreak} days 🔥</p>
             </div>
             {peak !== null ? (
               <div>
-                <p className="text-xs font-semibold tracking-wider uppercase opacity-80">Peak hour</p>
+                <p className="text-xs font-bold tracking-wider uppercase opacity-80">Peak hour</p>
                 <p className="text-lg font-black">{hourLabel(peak)}</p>
               </div>
             ) : null}
           </div>
         </div>
         <div className="rounded-2xl bg-black/25 px-3 py-2">
-          <p className="text-xs font-semibold tracking-wider uppercase opacity-80">Persona</p>
+          <p className="text-xs font-bold tracking-wider uppercase opacity-80">Persona</p>
           <p className="text-lg font-black">
             {me.emoji} {me.title}
           </p>
@@ -511,7 +521,73 @@ export function SummaryCard({ data, cardRef }: { data: WrappedData; cardRef?: Re
   );
 }
 
+/**
+ * Turn the summary card into a 1080×1920 PNG (a story's size): drawn from a
+ * copy kept off screen at exactly 360×640, scaled three times.
+ */
+/** The page's fonts as embeddable CSS, worked out once and reused. */
+let fontCss: Promise<string> | null = null;
+
+/** Start gathering the fonts early, so the image is quick when asked for. */
+function warmFonts(node: HTMLElement) {
+  fontCss ??= import("html-to-image").then(({ getFontEmbedCSS }) =>
+    getFontEmbedCSS(node, { preferredFontFormat: "woff2" }),
+  );
+}
+
+async function cardImage(node: HTMLElement, month: string): Promise<File> {
+  const { toBlob } = await import("html-to-image");
+  // Without this, every render re-downloads every font file for every node.
+  warmFonts(node);
+  const blob = await toBlob(node, {
+    pixelRatio: 3,
+    fontEmbedCSS: (await fontCss) ?? undefined,
+    // A photo that will not load cross-origin becomes a blank, not a failure.
+    imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
+  });
+  if (!blob) throw new Error("No image");
+  return new File([blob], `ottolabs-wrapped-${month}.png`, { type: "image/png" });
+}
+
+function download(file: File) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function ShareSlide({ data }: { data: WrappedData }) {
+  const card = useRef<HTMLDivElement>(null);
+  const [busy, setBusy] = useState<"share" | "save" | null>(null);
+
+  // The fonts take a few seconds to gather; start while the card is admired.
+  useEffect(() => {
+    if (card.current) warmFonts(card.current);
+  }, []);
+
+  async function run(kind: "share" | "save") {
+    if (!card.current || busy) return;
+    setBusy(kind);
+    try {
+      const file = await cardImage(card.current, data.month);
+      const shareable = typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+      if (kind === "share" && shareable) {
+        // On a phone: the share sheet, with Instagram Stories, WhatsApp and the rest.
+        await navigator.share({ files: [file], title: `My ${data.monthName} on OttoLabs` });
+      } else {
+        download(file);
+        if (kind === "share") toast.message("Saved the image. Share it from your photos or downloads.");
+      }
+    } catch (error) {
+      // Closing the share sheet is not an error worth reporting.
+      if ((error as Error)?.name !== "AbortError") toast.error("Could not make the image. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4">
       <Rise className="w-[78%] max-w-[300px]">
@@ -521,20 +597,28 @@ function ShareSlide({ data }: { data: WrappedData }) {
         <button
           type="button"
           data-no-advance
-          className="flex cursor-pointer items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black hover:bg-white/90"
+          disabled={busy !== null}
+          onClick={() => void run("share")}
+          className="flex cursor-pointer items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black hover:bg-white/90 disabled:opacity-60"
         >
           <Share2 className="size-4" aria-hidden />
-          Share
+          {busy === "share" ? "Making…" : "Share"}
         </button>
         <button
           type="button"
           data-no-advance
-          className="flex cursor-pointer items-center gap-2 rounded-full border border-white/40 px-5 py-2.5 text-sm font-bold hover:bg-white/10"
+          disabled={busy !== null}
+          onClick={() => void run("save")}
+          className="flex cursor-pointer items-center gap-2 rounded-full border border-white/40 px-5 py-2.5 text-sm font-bold hover:bg-white/10 disabled:opacity-60"
         >
           <Download className="size-4" aria-hidden />
-          Save image
+          {busy === "save" ? "Saving…" : "Save image"}
         </button>
       </Rise>
+      {/* The copy that becomes the image: fixed size, off screen, never animated. */}
+      <div aria-hidden className="pointer-events-none fixed top-0 -left-[10000px] w-[360px]">
+        <SummaryCard data={data} cardRef={card} square />
+      </div>
     </div>
   );
 }

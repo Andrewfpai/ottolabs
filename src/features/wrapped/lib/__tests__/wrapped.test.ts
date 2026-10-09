@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { changeVsLastMonth, hourLabel, introLine, peakHour, persona, pick, totalLine } from "../wrapped";
+import { changeVsLastMonth, hourLabel, introLine, isMonthKey, monthBounds, monthOf, peakHour, persona, pick, shiftMonth, totalLine } from "../wrapped";
 
 const H = 3_600_000;
 const MONTHS = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
@@ -50,5 +50,17 @@ describe("the rest", () => {
     const p = persona({ month: "2026-09", hours, focusMs: 40 * H, sessions: 80, activeDays: 25, daysInMonth: 30 });
     expect(p.title).toBe("The Night Owl Scholar");
     expect(p.line.length).toBeGreaterThan(10);
+  });
+});
+
+describe("months", () => {
+  it("validates, shifts across years, and bounds a month", () => {
+    expect(isMonthKey("2026-09")).toBe(true);
+    expect(isMonthKey("2026-13")).toBe(false);
+    expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+    expect(shiftMonth("2026-01", -1)).toBe("2025-12");
+    expect(monthBounds("2026-02")).toEqual({ first: "2026-02-01", next: "2026-03-01", days: 28 });
+    expect(monthBounds("2028-02").days).toBe(29);
+    expect(monthOf("2026-09-14")).toBe("2026-09");
   });
 });

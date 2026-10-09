@@ -32,7 +32,10 @@ import {
 } from "@/features/reminders/lib/reminders";
 import { isHeartbeatFresh } from "@/features/sessions/lib/staleness";
 import { reviewsDueMessage } from "@/features/tasks/lib/reviews";
-import { addDays, dayKey, wallClock, zonedInstant } from "@/lib/time/calendar-day";
+import { addDays, dayKey, formatDayKey, wallClock, zonedInstant } from "@/lib/time/calendar-day";
+import { formatCompact } from "@/lib/time/elapsed";
+import { FOCUS_MS } from "@/features/tracks/server/queries";
+import { shiftMonth } from "@/features/wrapped/lib/wrapped";
 
 let configured: boolean | null = null;
 
@@ -300,3 +303,50 @@ export async function pruneReminderLog(now: number = Date.now()): Promise<void> 
   await db.delete(reminderLog).where(sql`${reminderLog.sentAt} < ${new Date(now - 8 * 86_400_000)}`);
 }
 
+
+/**
+ * "Your September Wrapped is ready", once a month, in the first three days
+ * of the month (the daily cron runs at 12:00 UTC, so everyone's 1st is
+ * covered even across zones). Only for months with focus in them.
+ */
+export async function runWrappedNotifications(now: number = Date.now()): Promise<{ sent: number }> {
+  const run = { sent: 0 };
+  if (!pushConfigured()) return run;
+
+  const people = await db
+    .selectDistinct({ userId: userSettings.userId, timeZone: userSettings.timezone })
+    .from(userSettings)
+    .innerJoin(pushSubscriptions, eq(pushSubscriptions.userId, userSettings.userId));
+
+  for (const person of people) {
+    const today = dayKey(now, person.timeZone);
+    if (Number(today.slice(8, 10)) > 3) continue;
+    const month = shiftMonth(today.slice(0, 7), -1);
+    const from = zonedInstant(`${month}-01`, null, person.timeZone);
+    const to = zonedInstant(`${today.slice(0, 7)}-01`, null, person.timeZone);
+    const [row] = await db
+      .select({ focusMs: FOCUS_MS })
+      .from(focusSessions)
+      .where(
+        and(
+          eq(focusSessions.userId, person.userId),
+          sql`${focusSessions.endedAt} is not null`,
+          gte(focusSessions.startedAt, from),
+          lt(focusSessions.startedAt, to),
+        ),
+      );
+    const focusMs = Math.max(0, Math.round(Number(row?.focusMs ?? 0)));
+    if (focusMs < 60_000) continue;
+    if (!(await claimReminder(person.userId, `wrapped:${month}`))) continue;
+
+    const name = formatDayKey(`${month}-01`, { month: "long" });
+    const delivered = await sendToUser(person.userId, {
+      title: `🎁 Your ${name} Wrapped is ready`,
+      body: `${formatCompact(focusMs)} of focus, your top tracks and your study persona. Tap to play.`,
+      url: `/wrapped/${month}`,
+      tag: `wrapped-${month}`,
+    });
+    if (delivered > 0) run.sent += 1;
+  }
+  return run;
+}

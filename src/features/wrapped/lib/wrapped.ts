@@ -4,6 +4,7 @@
  * tested. Gathering the numbers is the server's job (`server/`).
  */
 import type { AccessoryId, AnimalAvatarId } from "@/lib/avatars";
+import { addDays, type DayKey } from "@/lib/time/calendar-day";
 
 export type WrappedTrack = { title: string; color: string; ms: number };
 
@@ -190,4 +191,32 @@ export function persona(
 export function hourLabel(hour: number): string {
   const h = hour % 12 === 0 ? 12 : hour % 12;
   return `${h} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+// ── Months ─────────────────────────────────────────────────────────────────
+
+/** "2026-09". */
+export function isMonthKey(value: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
+/** The month a day belongs to: "2026-09-14" → "2026-09". */
+export function monthOf(day: DayKey): string {
+  return day.slice(0, 7);
+}
+
+/** The month after or before, by `delta` months. */
+export function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const index = y * 12 + (m - 1) + delta;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+/** The month's first day, the next month's first day, and how many days it has. */
+export function monthBounds(month: string): { first: DayKey; next: DayKey; days: number } {
+  const first = `${month}-01` as DayKey;
+  const next = `${shiftMonth(month, 1)}-01` as DayKey;
+  let days = 0;
+  for (let d = first; d !== next; d = addDays(d, 1)) days += 1;
+  return { first, next, days };
 }

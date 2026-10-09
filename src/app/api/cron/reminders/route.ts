@@ -1,4 +1,4 @@
-import { pruneReminderLog, runEveningReminders } from "@/features/reminders/server/push";
+import { pruneReminderLog, runEveningReminders, runWrappedNotifications } from "@/features/reminders/server/push";
 import { runDueTaskReminders } from "@/features/tasks/server/reminders";
 
 export const dynamic = "force-dynamic";
@@ -20,5 +20,6 @@ export async function GET(request: Request) {
   await pruneReminderLog();
   // A daily sweep too, in case no scheduler is set up.
   const tasks = await runDueTaskReminders();
-  return Response.json({ ...result, tasks });
+  const wrapped = await runWrappedNotifications();
+  return Response.json({ ...result, tasks, wrapped });
 }

@@ -1,4 +1,4 @@
-import { Flame, Target } from "lucide-react";
+import { Flame, Play, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -13,6 +13,8 @@ import { getTaskBoard } from "@/features/tasks/server/queries";
 import { getTrackOptions } from "@/features/tracks/server/queries";
 import { requireSettings } from "@/lib/auth-guard";
 import { formatDayKey } from "@/lib/time/calendar-day";
+import { getWrappedMonths } from "@/features/wrapped/server/queries";
+import { shiftMonth } from "@/features/wrapped/lib/wrapped";
 import { formatCompact, MINUTE_MS } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
@@ -23,12 +25,18 @@ export const metadata: Metadata = { title: "Dashboard" };
 const UPCOMING_LIMIT = 5;
 
 export default async function DashboardPage() {
-  const [summary, board, tracks, settings] = await Promise.all([
+  const [summary, board, tracks, settings, wrappedMonths] = await Promise.all([
     getFocusSummary(),
     getTaskBoard(),
     getTrackOptions(),
     requireSettings(),
+    getWrappedMonths(),
   ]);
+
+  // For the first week of a month, last month's Wrapped waits on top.
+  const lastMonth = shiftMonth(board.todayKey.slice(0, 7), -1);
+  const freshWrapped =
+    Number(board.todayKey.slice(8, 10)) <= 7 ? wrappedMonths.find((m) => m.month === lastMonth) : undefined;
 
   const goals = tracks.filter((t) => t.status === "active" && t.targetMinutesPerWeek);
   const dueToday = [...board.open.overdue, ...board.open.today];
@@ -42,6 +50,30 @@ export default async function DashboardPage() {
       />
 
       <div className="space-y-4">
+        {freshWrapped ? (
+          <Link
+            href={`/wrapped/${freshWrapped.month}`}
+            className="group relative flex items-center gap-4 overflow-hidden rounded-2xl p-5 text-white"
+            style={{ background: "linear-gradient(120deg, #2A0E61 0%, #6A1B9A 45%, #E040A0 100%)" }}
+          >
+            <span aria-hidden className="absolute -top-10 right-10 size-28 rounded-[38%] bg-[#FFD166]/80" />
+            <span aria-hidden className="absolute -right-6 -bottom-14 size-32 rounded-full bg-[#FF6FB5]/70" />
+            <span className="relative text-3xl" aria-hidden>
+              🎁
+            </span>
+            <div className="relative min-w-0 flex-1">
+              <p className="text-lg font-black">Your {freshWrapped.monthName} Wrapped is ready</p>
+              <p className="text-sm opacity-90">
+                {formatCompact(freshWrapped.focusMs)} of focus, your top tracks and your study persona.
+              </p>
+            </div>
+            <span className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform group-hover:scale-110">
+              <Play className="size-5 fill-current" aria-hidden />
+              <span className="sr-only">Play</span>
+            </span>
+          </Link>
+        ) : null}
+
         <div className="grid gap-4 lg:grid-cols-3">
           <Panel title="Today">
             <GoalRing
