@@ -32,7 +32,7 @@ import { removeMember, sendRoomReaction } from "@/features/rooms/server/actions"
 import type { RoomLive as RoomLiveData, RoomMemberLive } from "@/features/rooms/server/queries";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { now as clockNow } from "@/lib/time/clock";
-import { elapsedMs, formatCompact } from "@/lib/time/elapsed";
+import { elapsedMs, formatCompact, formatDuration } from "@/lib/time/elapsed";
 import { trackColorClasses } from "@/lib/track-colors";
 import { cn } from "@/lib/utils";
 
@@ -82,12 +82,11 @@ export function useRepaint(active: boolean, ms = 15_000) {
 }
 
 /**
- * A member's total for the period, counted up to this moment: the server's
- * figure, plus the minutes their running timer has added since it was read.
+ * How long a member has focused in the session they are in right now:
+ * nothing if they are not in one. Measured by elapsed.ts, like every timer.
  */
-export function liveTotal(member: RoomMemberLive, period: "today" | "week", asOf: number, now: number): number {
-  const base = period === "today" ? member.todayMs : member.weekMs;
-  return member.state === "focusing" ? base + Math.max(0, now - asOf) : base;
+export function currentSessionMs(member: RoomMemberLive, now: number): number {
+  return member.session ? elapsedMs(member.session, now) : 0;
 }
 
 /** An avatar ringed by what the person is doing right now. */
@@ -110,7 +109,11 @@ export function PresenceAvatar({ member, className }: { member: RoomMemberLive; 
   );
 }
 
-/** Everyone's focus side by side: a bar each, longest first. */
+/**
+ * Everyone's current session, racing side by side: a bar each that grows
+ * second by second while they focus, longest first. Finished sessions do
+ * not count; this is about who is putting the time in right now.
+ */
 export function Leaderboard({
   members,
   asOf,
@@ -121,66 +124,67 @@ export function Leaderboard({
   compact?: boolean;
 }) {
   const hydrated = useIsHydrated();
-  const [period, setPeriod] = useState<"today" | "week">("today");
-  useRepaint(members.some((m) => m.state === "focusing"), 15_000);
+  // Every second, so the bars visibly move while people work.
+  useRepaint(members.some((m) => m.state === "focusing"), 1_000);
   const now = hydrated ? clockNow() : asOf;
 
   const rows = members
-    .map((m) => ({ member: m, ms: liveTotal(m, period, asOf, now) }))
-    .sort((a, b) => b.ms - a.ms || a.member.name.localeCompare(b.member.name));
-  const max = Math.max(1, ...rows.map((r) => r.ms));
+    .map((m) => ({ member: m, ms: currentSessionMs(m, now) }))
+    .sort(
+      (a, b) =>
+        Number(Boolean(b.member.session)) - Number(Boolean(a.member.session)) ||
+        b.ms - a.ms ||
+        a.member.name.localeCompare(b.member.name),
+    );
+  const max = Math.max(60_000, ...rows.map((r) => r.ms));
+  const muted = compact ? "text-white/60" : "text-muted-foreground";
 
   return (
     <div className={cn(!compact && "bg-card rounded-xl border p-4")}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className={cn("font-medium", compact ? "text-xs" : "text-sm")}>Leaderboard</h2>
-        <div role="tablist" aria-label="Period" className={cn("flex rounded-lg p-0.5", compact ? "bg-white/10" : "bg-muted")}>
-          {(["today", "week"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="tab"
-              aria-selected={period === p}
-              onClick={() => setPeriod(p)}
-              className={cn(
-                "cursor-pointer rounded-md px-2 py-0.5 text-xs",
-                period === p ? (compact ? "bg-white/20" : "bg-background shadow-sm") : "opacity-70",
-              )}
-            >
-              {p === "today" ? "Today" : "This week"}
-            </button>
-          ))}
-        </div>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 className={cn("font-medium", compact ? "text-xs" : "text-sm")}>Right now</h2>
+        <span className={cn("text-xs", muted)}>Current session</span>
       </div>
       <ol className={cn(compact ? "space-y-2" : "space-y-3")}>
-        {rows.map(({ member, ms }, index) => (
-          <li key={member.id} className="flex items-center gap-2.5">
-            <span className={cn("tabular w-4 shrink-0 text-right text-xs", compact ? "text-white/60" : "text-muted-foreground")}>
-              {index + 1}
-            </span>
-            <PresenceAvatar member={member} className={compact ? "size-6" : "size-8"} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className={cn("truncate font-medium", compact ? "text-xs" : "text-sm")}>
-                  {member.name}
-                  {member.isSelf ? <span className={compact ? "text-white/60" : "text-muted-foreground"}> (you)</span> : null}
-                </span>
-                <span className={cn("font-numeric shrink-0", compact ? "text-xs" : "text-sm")}>{formatCompact(ms)}</span>
-              </div>
-              <div className={cn("mt-1 h-2 overflow-hidden rounded-full", compact ? "bg-white/10" : "bg-muted")}>
-                <motion.div
-                  className={cn(
-                    "h-full rounded-full",
-                    member.state === "focusing" ? "bg-emerald-500" : compact ? "bg-white/50" : "bg-primary/60",
+        {rows.map(({ member, ms }, index) => {
+          const studying = member.session !== null;
+          return (
+            <li key={member.id} className="flex items-center gap-2.5">
+              <span className={cn("tabular w-4 shrink-0 text-right text-xs", muted)}>{studying ? index + 1 : "–"}</span>
+              <PresenceAvatar member={member} className={compact ? "size-6" : "size-8"} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className={cn("truncate font-medium", compact ? "text-xs" : "text-sm", !studying && muted)}>
+                    {member.name}
+                    {member.isSelf ? <span className={muted}> (you)</span> : null}
+                  </span>
+                  {studying ? (
+                    <span
+                      className={cn("font-numeric shrink-0", compact ? "text-xs" : "text-sm")}
+                      suppressHydrationWarning
+                    >
+                      {formatDuration(ms)}
+                    </span>
+                  ) : (
+                    <span className={cn("shrink-0 text-xs", muted)}>Not studying</span>
                   )}
-                  initial={false}
-                  animate={{ width: `${(ms / max) * 100}%` }}
-                  transition={{ type: "spring", stiffness: 120, damping: 20 }}
-                />
+                </div>
+                <div className={cn("mt-1 h-2 overflow-hidden rounded-full", compact ? "bg-white/10" : "bg-muted")}>
+                  <motion.div
+                    className={cn(
+                      "h-full rounded-full",
+                      member.state === "focusing" ? "bg-emerald-500" : "bg-amber-400",
+                    )}
+                    initial={false}
+                    // Rounded: the server and the browser print long decimals differently.
+                    animate={{ width: `${Math.round((ms / max) * 1000) / 10}%` }}
+                    transition={{ type: "spring", stiffness: 120, damping: 20 }}
+                  />
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -492,8 +496,8 @@ export function RoomLive({ roomId, initial, viewerIsOwner }: { roomId: string; i
           ))}
         </ul>
         <p className="text-muted-foreground border-t px-4 py-2.5 text-xs">
-          Updates every few seconds. Everyone keeps their own timer; the leaderboard counts all of each
-          person&apos;s focus today.
+          Updates every few seconds. Everyone keeps their own timer; the board races each
+          person&apos;s current session.
         </p>
       </section>
     </div>
