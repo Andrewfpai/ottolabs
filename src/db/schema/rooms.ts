@@ -78,3 +78,26 @@ export const roomMembers = pgTable(
 
 export type StudyRoom = typeof studyRooms.$inferSelect;
 export type RoomMember = typeof roomMembers.$inferSelect;
+
+/**
+ * A 👏 🔥 💪 or ☕ sent to everyone in a room. Short-lived: the room shows
+ * the last minute of them, floating up, so being together feels alive.
+ */
+export const roomReactions = pgTable(
+  "room_reactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => studyRooms.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reaction: text("reaction").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("room_reactions_room_created_idx").on(t.roomId, t.createdAt.desc()),
+    check("room_reactions_kind", sql`${t.reaction} in ('clap', 'fire', 'muscle', 'coffee')`),
+  ],
+);

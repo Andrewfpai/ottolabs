@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { zonedInstant } from "@/lib/time/calendar-day";
 
-import { memberState, roomTotals } from "../room";
+import { agoLabel, memberState, roomActivity, roomTotals } from "../room";
 
 const TZ = "Asia/Jakarta";
 const NOW = zonedInstant("2026-10-02", "16:00", TZ).getTime(); // a Friday
@@ -67,5 +67,30 @@ describe("roomTotals", () => {
     const totals = roomTotals([live, abandoned], settings, NOW);
     expect(totals.todayMs).toBe(20 * 60_000);
     expect(totals.weekByMember).toEqual({ a: 20 * 60_000 });
+  });
+});
+
+describe("roomActivity", () => {
+  const now = Date.UTC(2026, 9, 9, 12);
+  const label = () => ({ title: "Databases", color: "violet" });
+
+  it("lists starts and finishes from the last twelve hours, newest first", () => {
+    const sessions = [
+      { userId: "a", trackId: "t", startedAt: new Date(now - 3_600_000), endedAt: new Date(now - 600_000) },
+      { userId: "b", trackId: "t", startedAt: new Date(now - 120_000), endedAt: null },
+      { userId: "c", trackId: "t", startedAt: new Date(now - 20 * 3_600_000), endedAt: new Date(now - 19 * 3_600_000) },
+    ];
+    const events = roomActivity(sessions, label, () => 50 * 60_000, now);
+    expect(events.map((e) => `${e.kind}:${e.userId}`)).toEqual(["start:b", "finish:a", "start:a"]);
+    expect(events[1]).toMatchObject({ kind: "finish", focusMs: 50 * 60_000 });
+  });
+});
+
+describe("agoLabel", () => {
+  it("reads in minutes, then hours", () => {
+    const now = Date.UTC(2026, 9, 9, 12);
+    expect(agoLabel(now - 20_000, now)).toBe("just now");
+    expect(agoLabel(now - 5 * 60_000, now)).toBe("5m ago");
+    expect(agoLabel(now - 3 * 3_600_000, now)).toBe("3h ago");
   });
 });

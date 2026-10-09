@@ -40,6 +40,7 @@ import type { Track } from "@/db/schema";
 import { BackgroundPicker } from "@/features/focus/components/background-picker";
 import { FocusBackground } from "@/features/focus/components/focus-background";
 import { FriendsPanel } from "@/features/focus/components/friends-panel";
+import { RoomPanel } from "@/features/focus/components/room-panel";
 import type { FriendCard } from "@/features/friends/server/queries";
 import { SessionNotes } from "@/features/focus/components/session-notes";
 import { StudyTogether } from "@/features/focus/components/study-together";
@@ -157,6 +158,8 @@ export function FocusScreen({
   const [panel, setPanel] = useState<"background" | "together" | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   // Open by default when a friend is studying or an invitation is waiting.
+  // In a room, the room panel shows by default; Study together reopens it.
+  const [roomOpen, setRoomOpen] = useState(true);
   const [friendsOpen, setFriendsOpen] = useState(() => invitations.length > 0 || friends.some((f) => f.live));
   const [hidden, setHidden] = useState(false);
   const [pictureVersion, setPictureVersion] = useState(0);
@@ -237,7 +240,14 @@ export function FocusScreen({
                 ) : null}
               </span>
             </GlassIcon>
-            <GlassIcon label="Study together" active={Boolean(session?.roomId)} onClick={() => setPanel("together")}>
+            <GlassIcon
+              label="Study together"
+              active={Boolean(session?.roomId)}
+              onClick={() => {
+                if (session?.roomId && !roomOpen) setRoomOpen(true);
+                else setPanel("together");
+              }}
+            >
               <Users className="size-4" aria-hidden />
             </GlassIcon>
             <FocusSoundButton audibleNow={Boolean(session) && !isPaused} className={cn("size-10 rounded-xl", GLASS)} />
@@ -360,13 +370,27 @@ export function FocusScreen({
         </div>
       </div>
 
-      {friendsOpen && !hidden ? (
-        <FriendsPanel
-          friends={friends}
-          invitations={invitations}
-          running={Boolean(session)}
-          onClose={() => setFriendsOpen(false)}
-        />
+      {/* The left column: the room you are in, then friends. Phones: above
+          the controls, clear of the timer. Wider screens: top left. */}
+      {!hidden && ((session?.roomId && roomOpen) || friendsOpen) ? (
+        <div className="absolute bottom-24 left-4 z-10 flex max-h-[45%] w-[min(20rem,calc(100vw-2rem))] flex-col gap-3 sm:top-20 sm:bottom-auto sm:max-h-[calc(100%-11rem)]">
+          {session?.roomId && roomOpen ? (
+            <RoomPanel
+              key={session.roomId}
+              roomId={session.roomId}
+              roomName={rooms.find((r) => r.id === session.roomId)?.name ?? "Your room"}
+              onClose={() => setRoomOpen(false)}
+            />
+          ) : null}
+          {friendsOpen ? (
+            <FriendsPanel
+              friends={friends}
+              invitations={invitations}
+              running={Boolean(session)}
+              onClose={() => setFriendsOpen(false)}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       {session && notesOpen && !hidden ? (

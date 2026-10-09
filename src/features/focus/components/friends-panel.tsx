@@ -103,8 +103,8 @@ export function FriendsPanel({
       aria-label="Friends"
       initial={reduceMotion ? false : { opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
-      // Phones: above the controls, clear of the timer. Wider screens: top left.
-      className="absolute bottom-24 left-4 z-10 flex max-h-[38%] w-[min(20rem,calc(100vw-2rem))] flex-col rounded-2xl border border-white/15 bg-black/55 text-white shadow-2xl backdrop-blur-md sm:top-20 sm:bottom-auto sm:max-h-[calc(100%-11rem)]"
+      // Placed by focus mode's left column, with the room panel.
+      className="flex min-h-0 flex-col rounded-2xl border border-white/15 bg-black/55 text-white shadow-2xl backdrop-blur-md"
     >
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div>

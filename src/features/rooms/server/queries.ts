@@ -12,6 +12,7 @@ import {
   focusSessions,
   friendships,
   roomMembers,
+  roomReactions,
   studyRooms,
   tracks,
   userSettings,
@@ -19,10 +20,20 @@ import {
 } from "@/db/schema";
 import { displayName, redactTrackTitles } from "@/features/friends/lib/sharing";
 import { userPicture } from "@/features/friends/server/picture";
-import { MAX_ROOM_MEMBERS, type MemberState, memberState, roomTotals } from "@/features/rooms/lib/room";
+import {
+  type ActivityEvent,
+  MAX_ROOM_MEMBERS,
+  type MemberState,
+  memberState,
+  REACTION_WINDOW_MS,
+  roomActivity,
+  type RoomReaction,
+  roomTotals,
+} from "@/features/rooms/lib/room";
 import { parseRoomCode } from "@/features/rooms/lib/invite-code";
 import { joinedRoom } from "@/features/rooms/server/check";
 import { requireSettings, requireUser } from "@/lib/auth-guard";
+import { elapsedMs } from "@/lib/time/elapsed";
 
 export type RoomSummary = {
   id: string;
@@ -109,22 +120,32 @@ export type RoomMemberLive = {
     trackLabel: string;
     trackColor: string;
   } | null;
-  /** This week's focus in this room. */
-  weekMs: number;
-};
-
-export type RoomLive = {
-  members: RoomMemberLive[];
+  /** All of their focus today and this week, in the viewer's days: the leaderboard. */
   todayMs: number;
   weekMs: number;
 };
 
-/** Days of room sessions to load: enough for any "this week". */
+export type RoomReactionLive = { id: string; reaction: RoomReaction; userId: string; name: string; at: number };
+
+export type RoomActivityLive = ActivityEvent & { name: string };
+
+export type RoomLive = {
+  members: RoomMemberLive[];
+  /** The last minute of reactions, newest first. */
+  reactions: RoomReactionLive[];
+  /** What happened lately: starts and finishes. */
+  activity: RoomActivityLive[];
+  /** When this was read; live minutes are added on top of it client-side. */
+  asOf: number;
+};
+
+/** Days of sessions to load: enough for any "this week". */
 const ROOM_HISTORY_DAYS = 9;
 
 /**
- * The live view of a room, for the page and for polling. Returns null unless
- * the viewer is a joined member.
+ * The live view of a room, for the page, focus mode and polling. Returns
+ * null unless the viewer is a joined member. Each person's timer stays their
+ * own; the room just sees everyone's, side by side.
  */
 export async function getRoomLive(roomId: string, viewerId: string): Promise<RoomLive | null> {
   const membership = await joinedRoom(roomId, viewerId);
@@ -148,7 +169,9 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
   const memberIds = members.map((m) => m.id);
   const since = new Date(now - ROOM_HISTORY_DAYS * 86_400_000);
 
-  const [openSessions, trackRows, roomSessions, viewerSettings] = await Promise.all([
+  const [sessions, trackRows, reactionRows, viewerSettings] = await Promise.all([
+    // Everything members did lately, in any room or none: the leaderboard
+    // is everyone's own focus, not a pooled timer.
     db
       .select({
         userId: focusSessions.userId,
@@ -162,31 +185,23 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
         lastHeartbeatAt: focusSessions.lastHeartbeatAt,
       })
       .from(focusSessions)
-      .where(and(inArray(focusSessions.userId, memberIds), isNull(focusSessions.endedAt))),
+      .where(
+        and(
+          inArray(focusSessions.userId, memberIds),
+          or(gte(focusSessions.startedAt, since), isNull(focusSessions.endedAt)),
+        ),
+      ),
     db
       .select({ id: tracks.id, userId: tracks.userId, title: tracks.title, color: tracks.color })
       .from(tracks)
       .where(inArray(tracks.userId, memberIds))
       .orderBy(asc(tracks.sortOrder), asc(tracks.createdAt)),
-    // Only sessions started in this room, and only by people still in it.
     db
-      .select({
-        userId: focusSessions.userId,
-        trackId: focusSessions.trackId,
-        startedAt: focusSessions.startedAt,
-        endedAt: focusSessions.endedAt,
-        pausedMs: focusSessions.pausedMs,
-        pausedAt: focusSessions.pausedAt,
-        lastHeartbeatAt: focusSessions.lastHeartbeatAt,
-      })
-      .from(focusSessions)
-      .where(
-        and(
-          eq(focusSessions.roomId, roomId),
-          inArray(focusSessions.userId, memberIds),
-          gte(focusSessions.startedAt, since),
-        ),
-      ),
+      .select({ id: roomReactions.id, reaction: roomReactions.reaction, userId: roomReactions.userId, createdAt: roomReactions.createdAt })
+      .from(roomReactions)
+      .where(and(eq(roomReactions.roomId, roomId), gte(roomReactions.createdAt, new Date(now - REACTION_WINDOW_MS))))
+      .orderBy(desc(roomReactions.createdAt))
+      .limit(30),
     requireSettings(),
   ]);
 
@@ -197,9 +212,11 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
     const share = member.id === viewerId || (member.shareTrackNames ?? false);
     for (const t of redactTrackTitles(own, share)) labels.set(t.id, { title: t.title, color: t.color });
   }
+  const labelOf = (trackId: string) => labels.get(trackId) ?? { title: "a track", color: "teal" };
+  const nameOf = new Map(members.map((m) => [m.id, displayName(m)]));
 
   const totals = roomTotals(
-    roomSessions,
+    sessions,
     {
       timeZone: viewerSettings.timezone,
       dayStartHour: viewerSettings.dayStartHour,
@@ -208,11 +225,18 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
     now,
   );
 
+  // An abandoned timer is not news: only fresh or finished sessions make the feed.
+  const feedSessions = sessions.filter((s) => s.endedAt !== null || memberState(s, now) !== "away");
+  const activity = roomActivity(feedSessions, labelOf, (s) => elapsedMs(s, now), now).map((event) => ({
+    ...event,
+    name: nameOf.get(event.userId) ?? "Someone",
+  }));
+
   return {
     members: members.map((member) => {
-      const open = openSessions.find((s) => s.userId === member.id) ?? null;
+      const open = sessions.find((s) => s.userId === member.id && s.endedAt === null) ?? null;
       const state = memberState(open, now);
-      const track = open ? labels.get(open.trackId) : undefined;
+      const track = open ? labelOf(open.trackId) : undefined;
       return {
         id: member.id,
         name: displayName(member),
@@ -231,11 +255,19 @@ export async function getRoomLive(roomId: string, viewerId: string): Promise<Roo
                 trackColor: track?.color ?? "teal",
               }
             : null,
+        todayMs: totals.todayByMember[member.id] ?? 0,
         weekMs: totals.weekByMember[member.id] ?? 0,
       };
     }),
-    todayMs: totals.todayMs,
-    weekMs: totals.weekMs,
+    reactions: reactionRows.map((r) => ({
+      id: r.id,
+      reaction: r.reaction as RoomReaction,
+      userId: r.userId,
+      name: nameOf.get(r.userId) ?? "Someone",
+      at: r.createdAt.getTime(),
+    })),
+    activity,
+    asOf: now,
   };
 }
 

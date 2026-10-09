@@ -9,7 +9,7 @@ import { isHeartbeatFresh } from "@/features/sessions/lib/staleness";
 export const MAX_ROOM_MEMBERS = 12;
 
 /** How often an open room page asks for updates. */
-export const ROOM_POLL_MS = 10_000;
+export const ROOM_POLL_MS = 5_000;
 
 export type MemberState = "focusing" | "break" | "paused" | "away";
 
@@ -34,8 +34,10 @@ export function memberState(session: LiveRow | null, now: number): MemberState {
 export type RoomTotals = {
   todayMs: number;
   weekMs: number;
-  /** This week's focus in the room, per member id. */
+  /** This week's focus, per member id. */
   weekByMember: Record<string, number>;
+  /** Today's focus, per member id. */
+  todayByMember: Record<string, number>;
 };
 
 /**
@@ -58,9 +60,66 @@ export function roomTotals(
   for (const s of counted) byUser.set(s.userId, [...(byUser.get(s.userId) ?? []), s]);
 
   const weekByMember: Record<string, number> = {};
+  const todayByMember: Record<string, number> = {};
   for (const [userId, list] of byUser) {
-    weekByMember[userId] = computeFocusSummary({ settings, now, sessions: list }).weekMs;
+    const summary = computeFocusSummary({ settings, now, sessions: list });
+    weekByMember[userId] = summary.weekMs;
+    todayByMember[userId] = summary.todayMs;
   }
 
-  return { todayMs: all.todayMs, weekMs: all.weekMs, weekByMember };
+  return { todayMs: all.todayMs, weekMs: all.weekMs, weekByMember, todayByMember };
+}
+
+// ── Reactions ──────────────────────────────────────────────────────────────
+
+/** What a room can send each other: a quick nudge, never a chat. */
+export const ROOM_REACTIONS = ["clap", "fire", "muscle", "coffee"] as const;
+export type RoomReaction = (typeof ROOM_REACTIONS)[number];
+export const REACTION_EMOJI: Record<RoomReaction, string> = { clap: "👏", fire: "🔥", muscle: "💪", coffee: "☕" };
+/** One reaction per person every few seconds: enough to cheer, not to spam. */
+export const REACTION_COOLDOWN_MS = 3_000;
+/** How long a reaction stays visible to people polling the room. */
+export const REACTION_WINDOW_MS = 60_000;
+
+// ── Activity ───────────────────────────────────────────────────────────────
+
+export type ActivityEvent =
+  | { kind: "start"; at: number; userId: string; trackLabel: string; trackColor: string }
+  | { kind: "finish"; at: number; userId: string; focusMs: number };
+
+/** How far back the activity feed looks. */
+export const ACTIVITY_WINDOW_MS = 12 * 3_600_000;
+
+/**
+ * What happened in the room lately: who started on what, who finished and
+ * how long they focused. Newest first. `focusMsOf` is how a session's focus
+ * is measured (elapsed.ts), passed in to keep this file free of it.
+ */
+export function roomActivity<S extends { userId: string; trackId: string; startedAt: Date; endedAt: Date | null }>(
+  sessions: readonly S[],
+  label: (trackId: string) => { title: string; color: string },
+  focusMsOf: (session: S) => number,
+  now: number,
+  limit = 10,
+): ActivityEvent[] {
+  const since = now - ACTIVITY_WINDOW_MS;
+  const events: ActivityEvent[] = [];
+  for (const s of sessions) {
+    if (s.startedAt.getTime() >= since) {
+      const track = label(s.trackId);
+      events.push({ kind: "start", at: s.startedAt.getTime(), userId: s.userId, trackLabel: track.title, trackColor: track.color });
+    }
+    if (s.endedAt && s.endedAt.getTime() >= since) {
+      events.push({ kind: "finish", at: s.endedAt.getTime(), userId: s.userId, focusMs: focusMsOf(s) });
+    }
+  }
+  return events.sort((a, b) => b.at - a.at).slice(0, limit);
+}
+
+/** "just now", "3m ago", "2h ago". */
+export function agoLabel(at: number, now: number): string {
+  const minutes = Math.max(0, Math.floor((now - at) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
 }

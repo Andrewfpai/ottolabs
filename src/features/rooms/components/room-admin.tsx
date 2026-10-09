@@ -185,7 +185,7 @@ export function RoomHeaderActions({
   );
 }
 
-/** Owner only: add friends, withdraw invitations, remove members. */
+/** Owner only: invite friends and withdraw invitations. Removing members is in the member list. */
 export function ManagePeople({
   roomId,
   members,
@@ -194,7 +194,7 @@ export function ManagePeople({
   maxMembers,
 }: {
   roomId: string;
-  /** Joined members other than the owner. */
+  /** Joined members other than the owner: counted toward the limit, listed elsewhere. */
   members: Person[];
   invited: Person[];
   addable: Person[];
@@ -218,7 +218,7 @@ export function ManagePeople({
     <section aria-labelledby="manage-people" className="bg-card rounded-xl border">
       <div className="border-b px-4 py-3">
         <h2 id="manage-people" className="text-sm font-medium">
-          People
+          Invite friends
         </h2>
         <p className="text-muted-foreground mt-0.5 text-xs">
           Add friends. They see the room once they join, and joining lets the room see their timer.
@@ -242,24 +242,6 @@ export function ManagePeople({
             "Invited, not joined yet",
           ),
         )}
-        {members.map((person) =>
-          row(
-            person,
-            <Button
-              size="sm"
-              variant="ghost"
-              className="hover:text-destructive cursor-pointer gap-1"
-              disabled={pending}
-              onClick={() =>
-                run(() => removeMember({ roomId, userId: person.id }), `${person.name} was removed.`)
-              }
-            >
-              <X className="size-3.5" aria-hidden />
-              Remove
-            </Button>,
-            "In the room",
-          ),
-        )}
         {addable.map((person) =>
           row(
             person,
@@ -275,7 +257,7 @@ export function ManagePeople({
             </Button>,
           ),
         )}
-        {invited.length + members.length + addable.length === 0 ? (
+        {invited.length + addable.length === 0 ? (
           <li className="text-muted-foreground px-4 py-3 text-sm">
             Make friends on the Friends page first, then add them here.
           </li>

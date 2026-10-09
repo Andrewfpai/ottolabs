@@ -2,18 +2,18 @@
 
 import { randomBytes } from "node:crypto";
 
-import { and, count, eq, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, isNull, lt, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import { z } from "zod";
 
 import { db } from "@/db";
-import { focusSessions, friendships, roomMembers, studyRooms, users } from "@/db/schema";
+import { focusSessions, friendships, roomMembers, roomReactions, studyRooms, users } from "@/db/schema";
 import { notifyRoomStart, notifyStudyInvite } from "@/features/reminders/server/push";
 import { displayName } from "@/features/friends/lib/sharing";
 import { parseRoomCode } from "@/features/rooms/lib/invite-code";
-import { MAX_ROOM_MEMBERS } from "@/features/rooms/lib/room";
+import { MAX_ROOM_MEMBERS, REACTION_COOLDOWN_MS, ROOM_REACTIONS } from "@/features/rooms/lib/room";
 import {
   createRoomSchema,
   renameRoomSchema,
@@ -138,6 +138,17 @@ export async function addMember(input: unknown): Promise<ActionResult> {
     .onConflictDoNothing()
     .returning({ userId: roomMembers.userId });
   if (inserted.length === 0) return fail("They are already in this room or invited.");
+
+  // Tell them now, like "Study together" does. The push links to the
+  // room's invite page, so the room needs a code.
+  const [room] = await db.select({ inviteCode: studyRooms.inviteCode }).from(studyRooms).where(eq(studyRooms.id, roomId)).limit(1);
+  let code = room?.inviteCode ?? null;
+  if (!code) {
+    code = newRoomCode();
+    await db.update(studyRooms).set({ inviteCode: code }).where(eq(studyRooms.id, roomId));
+  }
+  const inviteCode = code;
+  after(() => notifyStudyInvite(me.id, userId, inviteCode));
 
   revalidateRooms();
   return ok(undefined);
@@ -393,4 +404,25 @@ export async function studyWith(input: unknown): Promise<ActionResult<{ roomId: 
     after(() => notifyStudyInvite(me.id, friendId, code));
   }
   return ok({ roomId: room.id, already: member?.status === "joined" });
+}
+
+/** Send a 👏 🔥 💪 or ☕ to everyone in a room. One every few seconds. */
+export async function sendRoomReaction(input: unknown): Promise<ActionResult> {
+  const me = await requireUser();
+  const parsed = z.object({ roomId: z.uuid(), reaction: z.enum(ROOM_REACTIONS) }).safeParse(input);
+  if (!parsed.success) return fail("Pick a reaction.");
+  if (!(await joinedRoom(parsed.data.roomId, me.id))) return fail(ROOM_GONE, "NOT_FOUND");
+
+  const [last] = await db
+    .select({ createdAt: roomReactions.createdAt })
+    .from(roomReactions)
+    .where(and(eq(roomReactions.roomId, parsed.data.roomId), eq(roomReactions.userId, me.id)))
+    .orderBy(desc(roomReactions.createdAt))
+    .limit(1);
+  if (last && Date.now() - last.createdAt.getTime() < REACTION_COOLDOWN_MS) return fail("Easy there, one at a time.", "COOLDOWN");
+
+  await db.insert(roomReactions).values({ roomId: parsed.data.roomId, userId: me.id, reaction: parsed.data.reaction });
+  // Old reactions are only ever read for a minute; tidy them as we go.
+  await db.delete(roomReactions).where(lt(roomReactions.createdAt, new Date(Date.now() - 3_600_000)));
+  return ok(undefined);
 }

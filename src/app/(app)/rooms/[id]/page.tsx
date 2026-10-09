@@ -38,7 +38,7 @@ export default async function RoomPage({ params }: PageProps<"/rooms/[id]">) {
 
       <div className="space-y-4">
         <RoomStart roomId={page.room.id} tracks={tracks} />
-        <RoomLive roomId={page.room.id} initial={page.live} />
+        <RoomLive roomId={page.room.id} initial={page.live} viewerIsOwner={page.isOwner} />
         {page.isOwner ? <RoomInvite roomId={page.room.id} /> : null}
         {page.isOwner ? (
           <ManagePeople
