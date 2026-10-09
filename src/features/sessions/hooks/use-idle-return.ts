@@ -6,10 +6,10 @@ import { now as clockNow } from "@/lib/time/clock";
 
 /**
  * Long absences are only worth asking about; a glance at another window is not.
- * Ten minutes is roughly the point at which "did you actually study that?"
- * becomes a fair question.
+ * An hour: studying often means time in other tabs and apps (notes, papers,
+ * videos), and asking after every half hour of that was nagging.
  */
-export const IDLE_THRESHOLD_MS = 10 * 60_000;
+export const IDLE_THRESHOLD_MS = 60 * 60_000;
 
 /**
  * Notices that you left the tab for a long time while a timer was running.
