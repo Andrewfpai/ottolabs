@@ -59,8 +59,7 @@ import { TIMER_LAYOUT_ID } from "@/features/sessions/lib/timer-layout";
 import type { SessionWithTrack } from "@/features/sessions/server/queries";
 import { FocusSoundButton } from "@/features/sounds/components/focus-sound-picker";
 import type { TrackTask } from "@/features/tasks/server/queries";
-import { now as clockNow } from "@/lib/time/clock";
-import { formatCompact, formatDuration, pausedTotalMs, timerState } from "@/lib/time/elapsed";
+import { formatCompact, formatDuration, timerState } from "@/lib/time/elapsed";
 import { cn } from "@/lib/utils";
 
 /** Glassy controls that read on any background, scene or photo. */
@@ -120,17 +119,6 @@ function useFullscreen() {
   return { on, toggle, supported };
 }
 
-/** Repaints once a second while a session is live, for the break total. */
-function useSecondTick(live: boolean): number {
-  const [tick, setTick] = useState(() => clockNow());
-  useEffect(() => {
-    if (!live) return;
-    const id = setInterval(() => setTick(clockNow()), 1000);
-    return () => clearInterval(id);
-  }, [live]);
-  return tick;
-}
-
 /**
  * Focus mode: the running timer over a full-screen scene.
  *
@@ -175,7 +163,6 @@ export function FocusScreen({
 
   const elapsed = useElapsed(session);
   const phase = usePomodoroPhase(session);
-  const tick = useSecondTick(session != null && session.endedAt == null);
 
   // The readout morphs from the timer bar's; omitting the id opts out.
   const readoutId = reduceMotion ? undefined : TIMER_LAYOUT_ID.readout;
@@ -222,7 +209,6 @@ export function FocusScreen({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [exit, toggle, finishOpen, panel, hidden]);
 
-  const breakMs = session ? pausedTotalMs(session, tick) : 0;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden text-white">
@@ -299,9 +285,7 @@ export function FocusScreen({
                 <p className="font-numeric" suppressHydrationWarning>
                   Focused {formatDuration(elapsed)}
                 </p>
-                <p className="font-numeric text-white/70" suppressHydrationWarning>
-                  On breaks and pauses {formatDuration(breakMs)}
-                </p>
+
                 {phase?.isOver ? (
                   <p className="text-white/70">
                     {phase.kind === "work" ? "This interval ran over while you were away; it still counts." : "Break is over."}

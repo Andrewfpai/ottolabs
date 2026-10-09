@@ -178,12 +178,8 @@ export function SessionsTable({
                   </TableCell>
 
                   <TableCell className="font-numeric align-top text-right text-sm font-medium">
+                    {/* Focus only: pauses and breaks never count as time. */}
                     {formatCompact(focusMs)}
-                    {session.pausedMs > 0 ? (
-                      <div className="text-muted-foreground text-xs font-normal">
-                        +{formatCompact(session.pausedMs)} paused
-                      </div>
-                    ) : null}
                   </TableCell>
 
                   <TableCell className="align-top">

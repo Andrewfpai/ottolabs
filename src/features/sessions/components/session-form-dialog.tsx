@@ -172,13 +172,19 @@ export function SessionFormDialog({
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {spanValid ? (
               <>
-                Duration{" "}
+                Focus{" "}
                 <span className="text-foreground font-numeric font-medium">
-                  {formatCompact(spanMs)}
+                  {/* What will be logged: the span less any recorded pause, the
+                      same sum as everywhere else (elapsed.ts). */}
+                  {formatCompact(
+                    elapsedMs({
+                      startedAt: start,
+                      endedAt: end,
+                      pausedMs: isEdit ? Math.min(session!.pausedMs, spanMs) : 0,
+                      pausedAt: null,
+                    }),
+                  )}
                 </span>
-                {isEdit && session!.pausedMs > 0 ? (
-                  <> · {formatCompact(session!.pausedMs)} of it paused</>
-                ) : null}
               </>
             ) : (
               "The end time has to be after the start time."
